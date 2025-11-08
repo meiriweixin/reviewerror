@@ -1,0 +1,57 @@
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Enum
+from sqlalchemy.orm import relationship
+from datetime import datetime
+import enum
+from app.database import Base
+
+class QuestionStatus(str, enum.Enum):
+    PENDING = "pending"
+    REVIEWING = "reviewing"
+    UNDERSTOOD = "understood"
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    name = Column(String(255), nullable=False)
+    google_id = Column(String(255), unique=True, index=True)
+    grade = Column(String(50))
+    profile_picture = Column(String(500))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    questions = relationship("Question", back_populates="user", cascade="all, delete-orphan")
+
+class Question(Base):
+    __tablename__ = "questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    subject = Column(String(100), index=True, nullable=False)
+    grade = Column(String(50), index=True)
+    question_text = Column(Text, nullable=False)
+    image_url = Column(String(500))
+    image_snippet_url = Column(String(500))  # URL to cropped question image
+    explanation = Column(Text)  # AI-generated explanation
+    status = Column(Enum(QuestionStatus), default=QuestionStatus.PENDING, index=True)
+    vector_id = Column(String(255))  # ID in Supabase vector DB
+    question_metadata = Column(Text)  # JSON string for additional data
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="questions")
+
+class UploadHistory(Base):
+    __tablename__ = "upload_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    filename = Column(String(255), nullable=False)
+    subject = Column(String(100))
+    questions_extracted = Column(Integer, default=0)
+    status = Column(String(50), default="processing")  # processing, completed, failed
+    error_message = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)

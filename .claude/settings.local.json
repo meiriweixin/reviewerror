@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(npm install)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(w32tm /resync)",
+      "Bash(net time /set /y)",
+      "Bash(timeout:*)",
+      "Bash(nul)",
+      "Bash(taskkill:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
