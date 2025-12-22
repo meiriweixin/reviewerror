@@ -4,8 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 from dotenv import load_dotenv
 
-from app.routers import auth, questions, stats
-from app.database import init_db
+from app.routers import auth, questions, stats, usage
 
 load_dotenv()
 
@@ -38,11 +37,13 @@ if os.path.exists(UPLOAD_DIR):
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(questions.router, prefix="/questions", tags=["Questions"])
 app.include_router(stats.router, prefix="/stats", tags=["Statistics"])
+app.include_router(usage.router, prefix="/usage", tags=["Usage"])
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup"""
-    await init_db()
+    """Initialize services on startup"""
+    # Supabase client is initialized in supabase_db_service.py
+    print("✅ Application started successfully")
 
 @app.get("/")
 async def root():

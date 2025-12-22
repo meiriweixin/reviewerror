@@ -1,14 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
-from typing import Optional
+from typing import Optional, Dict, Any
 
-from app.database import get_db
-from app.models import User
+from app.services.supabase_db_service import supabase_db
 from app.schemas import (
     GoogleLoginRequest,
     TokenResponse,
@@ -34,9 +31,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
-) -> User:
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> Dict[str, Any]:
     """Get current authenticated user"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -59,8 +55,7 @@ async def get_current_user(
         raise credentials_exception
 
     # Get user from database
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    user = await supabase_db.get_user_by_id(user_id)
 
     if user is None:
         raise credentials_exception
@@ -69,8 +64,7 @@ async def get_current_user(
 
 @router.post("/google", response_model=TokenResponse)
 async def google_login(
-    request: GoogleLoginRequest,
-    db: AsyncSession = Depends(get_db)
+    request: GoogleLoginRequest
 ):
     """Login/Register with Google OAuth"""
     try:
@@ -89,44 +83,44 @@ async def google_login(
         picture = idinfo.get('picture')
 
         # Check if user exists
-        result = await db.execute(select(User).where(User.google_id == google_id))
-        user = result.scalar_one_or_none()
+        user = await supabase_db.get_user_by_google_id(google_id)
 
         if not user:
             # Create new user
-            user = User(
-                google_id=google_id,
+            user = await supabase_db.create_user(
                 email=email,
+                name=name,
+                google_id=google_id,
+                profile_picture=picture
+            )
+        else:
+            # Update existing user info
+            user = await supabase_db.update_user(
+                user_id=user['id'],
                 name=name,
                 profile_picture=picture
             )
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-        else:
-            # Update existing user info
-            user.name = name
-            user.profile_picture = picture
-            user.updated_at = datetime.utcnow()
-            await db.commit()
-            await db.refresh(user)
 
         # Create access token
         access_token = create_access_token(
-            data={"sub": str(user.id), "email": user.email}
+            data={"sub": str(user['id']), "email": user['email']}
         )
 
         return TokenResponse(
             access_token=access_token,
-            user=UserResponse.from_orm(user)
+            user=UserResponse(**user)
         )
 
     except ValueError as e:
+        print(f"❌ ValueError in google_login: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid Google token: {str(e)}"
         )
     except Exception as e:
+        print(f"❌ Exception in google_login: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Authentication failed: {str(e)}"
@@ -134,22 +128,20 @@ async def google_login(
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Get current user information"""
-    return UserResponse.from_orm(current_user)
+    return UserResponse(**current_user)
 
 @router.put("/grade", response_model=UserResponse)
 async def update_grade(
     request: GradeUpdateRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Update user's grade level"""
-    current_user.grade = request.grade
-    current_user.updated_at = datetime.utcnow()
+    updated_user = await supabase_db.update_user_grade(
+        user_id=current_user['id'],
+        grade=request.grade
+    )
 
-    await db.commit()
-    await db.refresh(current_user)
-
-    return UserResponse.from_orm(current_user)
+    return UserResponse(**updated_user)

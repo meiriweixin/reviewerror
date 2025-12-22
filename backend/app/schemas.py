@@ -1,7 +1,12 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional, List
-from app.models import QuestionStatus
+from enum import Enum
+
+class QuestionStatus(str, Enum):
+    PENDING = "pending"
+    REVIEWING = "reviewing"
+    UNDERSTOOD = "understood"
 
 # User Schemas
 class UserBase(BaseModel):

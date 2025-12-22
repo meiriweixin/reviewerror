@@ -18,7 +18,7 @@ const GRADE_OPTIONS = [
   { value: 'uni4', label: 'University Year 4', category: 'University' },
 ];
 
-const GradeSelection = ({ user }) => {
+const GradeSelection = ({ user, onGradeSelected }) => {
   const navigate = useNavigate();
   const [selectedGrade, setSelectedGrade] = useState(user?.grade || '');
   const [loading, setLoading] = useState(false);
@@ -36,6 +36,9 @@ const GradeSelection = ({ user }) => {
 
     try {
       await updateUserGrade(selectedGrade);
+      if (onGradeSelected) {
+        onGradeSelected();
+      }
       navigate('/dashboard');
     } catch (err) {
       console.error('Failed to update grade:', err);
@@ -117,7 +120,12 @@ const GradeSelection = ({ user }) => {
         {user?.grade && (
           <div className="mt-6 text-center">
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => {
+                if (onGradeSelected) {
+                  onGradeSelected();
+                }
+                navigate('/dashboard');
+              }}
               className="text-sm text-gray-600 hover:text-gray-900 underline"
             >
               Skip for now

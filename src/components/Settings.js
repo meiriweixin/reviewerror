@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { updateUserGrade } from '../services/api';
 
 const GRADE_OPTIONS = [
@@ -18,6 +19,7 @@ const GRADE_OPTIONS = [
 ];
 
 const Settings = ({ user }) => {
+  const navigate = useNavigate();
   const [grade, setGrade] = useState(user?.grade || '');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -38,6 +40,10 @@ const Settings = ({ user }) => {
     }
   };
 
+  const handleChangeGrade = () => {
+    navigate('/grade-selection');
+  };
+
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-6">
@@ -46,7 +52,7 @@ const Settings = ({ user }) => {
       </div>
 
       {/* Profile Information */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Information</h3>
         <div className="space-y-4">
           <div>
@@ -55,7 +61,7 @@ const Settings = ({ user }) => {
               type="text"
               value={user?.name || ''}
               disabled
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-2xl bg-gray-50 text-gray-500"
             />
           </div>
           <div>
@@ -64,18 +70,18 @@ const Settings = ({ user }) => {
               type="email"
               value={user?.email || ''}
               disabled
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-2xl bg-gray-50 text-gray-500"
             />
           </div>
         </div>
       </div>
 
       {/* Grade Settings */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Academic Settings</h3>
 
         {message.text && (
-          <div className={`mb-4 p-4 rounded-lg ${
+          <div className={`mb-4 p-4 rounded-2xl ${
             message.type === 'success'
               ? 'bg-green-50 border border-green-200 text-green-700'
               : 'bg-red-50 border border-red-200 text-red-700'
@@ -90,7 +96,7 @@ const Settings = ({ user }) => {
             <select
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               <option value="">Select your grade</option>
               {GRADE_OPTIONS.map((option) => (
@@ -101,18 +107,27 @@ const Settings = ({ user }) => {
             </select>
           </div>
 
-          <button
-            type="submit"
-            disabled={saving || !grade}
-            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={saving || !grade}
+              className="px-6 py-2 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+            <button
+              type="button"
+              onClick={handleChangeGrade}
+              className="px-6 py-2 bg-white text-primary-600 border border-primary-600 rounded-2xl hover:bg-primary-50 transition-colors"
+            >
+              Go to Grade Selection
+            </button>
+          </div>
         </form>
       </div>
 
       {/* App Information */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">About</h3>
         <div className="space-y-3 text-sm text-gray-600">
           <p>

@@ -31,6 +31,7 @@ class AzureAIService:
             - wrong_questions: List of wrongly answered questions
             - total_questions: Total number of questions detected
             - analysis: Additional analysis from AI
+            - tokens_used: Token usage info (prompt_tokens, completion_tokens, total_tokens)
         """
         try:
             # Encode image
@@ -100,6 +101,13 @@ Return ONLY valid JSON, no additional text."""
             # Parse response
             result_text = response.choices[0].message.content.strip()
 
+            # Extract token usage
+            tokens_used = {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+
             # Try to parse JSON from response
             try:
                 # Remove markdown code blocks if present
@@ -120,64 +128,113 @@ Return ONLY valid JSON, no additional text."""
                     "analysis_notes": result_text
                 }
 
+            # Add token usage to result
+            result["tokens_used"] = tokens_used
+
             return result
 
         except Exception as e:
             print(f"Error analyzing question paper: {e}")
             raise Exception(f"Failed to analyze image: {str(e)}")
 
-    async def generate_embedding(self, text: str) -> List[float]:
-        """Generate embedding vector for text using Azure OpenAI"""
+    async def generate_embedding(self, text: str) -> tuple[List[float], Dict[str, int]]:
+        """
+        Generate embedding vector for text using Azure OpenAI
+
+        Returns:
+            Tuple of (embedding vector, token_usage dict)
+        """
         try:
             response = self.client.embeddings.create(
                 model="text-embedding-ada-002",  # or your deployed embedding model
                 input=text
             )
 
-            return response.data[0].embedding
+            tokens_used = {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": 0,  # Embeddings don't have completion tokens
+                "total_tokens": response.usage.total_tokens
+            }
+
+            return response.data[0].embedding, tokens_used
 
         except Exception as e:
             print(f"Error generating embedding: {e}")
             # Return a dummy embedding if fails
-            return [0.0] * 1536
+            return [0.0] * 1536, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     async def explain_question(
         self,
         question_text: str,
         subject: str,
         grade: Optional[str] = None
-    ) -> str:
-        """Generate an explanation/solution for a question"""
+    ) -> tuple[str, Dict[str, int]]:
+        """
+        Generate an explanation/solution for a question
+
+        Returns:
+            Tuple of (explanation text, token_usage dict)
+        """
         try:
             grade_context = f" for {grade} level" if grade else ""
 
-            prompt = f"""You are a helpful {subject} tutor. A student got this question wrong{grade_context}:
+            prompt = f"""Question: {question_text}
 
-Question: {question_text}
+Subject: {subject}{grade_context}
 
-Provide a clear, concise explanation that:
-1. Explains the key concept being tested
-2. Shows the correct approach to solve it
-3. Highlights common mistakes students make
-4. Gives tips to remember for similar questions
+Output format - YOU MUST USE EXACTLY THIS STRUCTURE (copy it exactly):
 
-Keep it friendly and encouraging, around 150-200 words."""
+## Question
+Write ONE sentence restating the question.
+
+## Key ideas
+- First key concept or formula
+- Second key concept or formula
+- Third key concept (if needed)
+
+## Step-by-step solution
+1. First step - show the calculation
+2. Second step - show the calculation
+3. Third step - show the calculation
+(Continue numbering until complete)
+
+## Final answer
+The final answer in a box or clear statement
+
+STRICT RULES:
+- DO NOT write paragraphs or long text
+- DO NOT add extra sections
+- ONLY use bullet points under "Key ideas"
+- ONLY use numbered list under "Step-by-step solution"
+- Keep each line SHORT (max 15 words)
+- CRITICAL: Use $...$ for ALL math (variables, numbers, equations)
+- Example: "Let $x = 5$" NOT "Let x = 5" or "Let ( x = 5 )"
+- Example: "Calculate $92 - y$" NOT "Calculate ( 92 - y )"
+- Example: "$y \\geq 19.2$" NOT "( y >= 19.2 )"
+- NEVER use parentheses () for math, ALWAYS use $...$
+- Show mathematical working clearly"""
 
             response = self.client.chat.completions.create(
                 model=self.deployment_name,
                 messages=[
-                    {"role": "system", "content": "You are a patient and encouraging tutor who helps students learn from their mistakes."},
+                    {"role": "system", "content": "You are a tutor. Output ONLY structured markdown with headers, bullet points, and numbered lists. NEVER write paragraphs. Use $...$ for ALL mathematical expressions. Be concise."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=500,
-                temperature=0.7
+                max_tokens=600,
+                temperature=0.2
             )
 
-            return response.choices[0].message.content.strip()
+            tokens_used = {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+
+            return response.choices[0].message.content.strip(), tokens_used
 
         except Exception as e:
             print(f"Error generating explanation: {e}")
-            return "Unable to generate explanation at this time."
+            return "Unable to generate explanation at this time.", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 # Create a singleton instance
 azure_ai_service = AzureAIService()

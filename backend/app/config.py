@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 
 class Settings(BaseSettings):
     # Application
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # Supabase
     SUPABASE_URL: str
     SUPABASE_KEY: str
-    SUPABASE_SERVICE_ROLE_KEY: str
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None  # Optional - using anon key + RLS instead
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./student_review.db"

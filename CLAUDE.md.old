@@ -1,0 +1,335 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+AI-powered Student Review Web App for Singapore students (Secondary 1 to University level). Uses Azure OpenAI GPT-4o Vision to extract wrong questions from exam papers and stores them in Supabase for semantic search and review tracking.
+
+**Tech Stack**: React 18 + FastAPI + Azure OpenAI GPT-4o + Supabase PostgreSQL
+
+## Development Commands
+
+### Running the Application
+
+**Frontend** (React):
+```bash
+npm start                    # Dev server on http://localhost:3000
+npm run build               # Production build
+npm test                    # Run tests
+```
+
+**Backend** (FastAPI):
+```bash
+cd backend
+source venv/bin/activate    # Windows: venv\Scripts\activate
+python main.py              # Dev server on http://localhost:8000
+uvicorn main:app --reload   # Alternative with auto-reload
+```
+
+### Database Operations
+
+The app now uses **Supabase SDK only** (SQLAlchemy has been removed):
+
+```bash
+# No local database file anymore
+# All data is in Supabase PostgreSQL (study schema)
+# Access Supabase Dashboard: https://supabase.com/dashboard
+```
+
+## Critical Architecture Patterns
+
+### 1. Database Layer - Supabase SDK Only (NOT SQLAlchemy)
+
+**Important**: This codebase removed SQLAlchemy in favor of direct Supabase SDK usage.
+
+**Database Service Location**: `backend/app/services/supabase_db_service.py`
+
+```python
+from app.services.supabase_db_service import supabase_db
+
+# All database operations use this singleton
+user = await supabase_db.get_user_by_id(user_id)
+question = await supabase_db.create_question(...)
+stats = await supabase_db.get_user_stats(user_id)
+```
+
+**Schema**: All tables are in the `study` schema in Supabase:
+- `study.users` - User accounts
+- `study.questions` - Extracted wrong questions
+- `study.upload_history` - Upload tracking
+- `study.question_embeddings` - Vector embeddings for semantic search
+
+**Key Pattern**: Router endpoints receive `current_user: Dict[str, Any]` (not ORM models). Access fields with `current_user['id']`, `current_user['email']`, etc.
+
+### 2. Authentication Flow
+
+**Backend**: JWT tokens with Google OAuth 2.0
+- `get_current_user()` dependency extracts user from JWT and fetches from Supabase
+- Returns `Dict[str, Any]`, not an ORM model
+- Service role key used for backend operations (bypasses RLS)
+
+**Frontend**: `@react-oauth/google` handles OAuth, stores JWT in localStorage
+
+### 3. AI Vision Pipeline
+
+**Question Extraction Flow**:
+```
+User uploads image
+    ↓
+FastAPI endpoint: POST /questions/upload
+    ↓
+azure_ai_service.analyze_question_paper()
+    - GPT-4o Vision identifies wrong questions (marked with ✗)
+    - Returns structured JSON with question text
+    ↓
+For each wrong question:
+    - Generate explanation via azure_ai_service.explain_question()
+    - Generate embedding via azure_ai_service.generate_embedding()
+    - Store in study.questions via supabase_db.create_question()
+    - Store vector in study.question_embeddings via supabase_service
+```
+
+**Service Separation**:
+- `azure_ai_service.py` - GPT-4o Vision for OCR and explanation
+- `supabase_service.py` - Vector embeddings storage/search ONLY
+- `supabase_db_service.py` - All CRUD operations (users, questions, uploads, stats)
+
+### 4. Vector Search Architecture
+
+**Two Supabase Services** (do not confuse them):
+
+1. **`supabase_db_service.py`** - Main database CRUD operations
+   - Uses service role key
+   - Handles users, questions, uploads, statistics
+   - Direct REST API calls via Supabase SDK
+
+2. **`supabase_service.py`** - Vector embeddings ONLY
+   - Uses service role key
+   - Stores/searches question embeddings
+   - Semantic search with pgvector
+
+**Search Flow**:
+```python
+# 1. Generate query embedding
+embedding = await azure_ai_service.generate_embedding(query_text)
+
+# 2. Search vectors
+results = await supabase_service.search_similar_questions(
+    user_id=user_id,
+    query_embedding=embedding,
+    limit=10
+)
+
+# 3. Get full questions from database
+for result in results:
+    question = await supabase_db.get_question_by_id(result['question_id'])
+```
+
+### 5. Status Tracking System
+
+Questions have three states (defined in `schemas.py`):
+- `"pending"` - Not reviewed yet
+- `"reviewing"` - Currently studying
+- `"understood"` - Mastered
+
+**Important**: These are string literals, not enum values (since SQLAlchemy was removed).
+
+## File Structure Highlights
+
+### Backend Service Layer
+
+```
+backend/app/services/
+├── azure_ai_service.py        # GPT-4o Vision for OCR and explanations
+├── supabase_service.py        # Vector embeddings (pgvector)
+└── supabase_db_service.py     # Main database CRUD (NEW - replaces SQLAlchemy)
+```
+
+### Backend Routers
+
+```
+backend/app/routers/
+├── auth.py        # Google OAuth, JWT, user management
+├── questions.py   # Upload, extract, review, search, delete questions
+└── stats.py       # User statistics, subject breakdown
+```
+
+**Pattern**: All routers import `from app.services.supabase_db_service import supabase_db`
+
+### Frontend Components
+
+```
+src/components/
+├── Login.js            # Google OAuth integration
+├── GradeSelection.js   # First-time grade selection
+├── Dashboard.js        # Main overview with statistics
+├── Upload.js           # Image upload and AI extraction
+├── Review.js           # Question list with filters
+└── Progress.js         # Analytics and achievements
+```
+
+## Environment Variables
+
+### Backend `.env` (Required)
+
+```env
+SECRET_KEY=<generate-strong-key>
+GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=xxx
+AZURE_OPENAI_ENDPOINT=https://xxx.openai.azure.com/
+AZURE_OPENAI_API_KEY=xxx
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+```
+
+**Critical**: `SUPABASE_SERVICE_ROLE_KEY` is needed for backend operations (bypasses RLS).
+
+### Frontend `.env.local` (Required)
+
+```env
+REACT_APP_API_URL=http://localhost:8000
+REACT_APP_GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
+REACT_APP_SUPABASE_URL=https://xxx.supabase.co
+REACT_APP_SUPABASE_ANON_KEY=xxx
+```
+
+## Common Development Scenarios
+
+### Adding a New Question Field
+
+1. Add column in Supabase SQL Editor:
+   ```sql
+   ALTER TABLE study.questions ADD COLUMN new_field TEXT;
+   ```
+
+2. Update `supabase_db_service.py`:
+   ```python
+   async def create_question(self, ..., new_field: Optional[str] = None):
+       data = {
+           ...
+           "new_field": new_field,
+       }
+   ```
+
+3. Update Pydantic schema in `schemas.py`:
+   ```python
+   class QuestionResponse(QuestionBase):
+       ...
+       new_field: Optional[str] = None
+   ```
+
+4. Update frontend API calls in `src/services/api.js`
+
+**No ORM models to update** - this is the benefit of removing SQLAlchemy.
+
+### Testing AI Question Extraction
+
+```bash
+# Use curl to test upload endpoint
+curl -X POST \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -F "file=@test-image.jpg" \
+  -F "subject=Mathematics" \
+  -F "grade=sec1" \
+  http://localhost:8000/questions/upload
+```
+
+**GPT-4o Vision Prompt**: Located in `azure_ai_service.py:40-70`. Looks for crosses (✗) and extracts question text.
+
+### Debugging Database Issues
+
+```python
+# Check if Supabase connection works
+from app.services.supabase_db_service import supabase_db
+user = await supabase_db.get_user_by_id(1)
+print(user)  # Should return dict or None
+```
+
+**Common Issues**:
+- Wrong service role key → 401 errors
+- Schema not set → table not found errors (ensure `study` schema exists)
+- RLS enabled but no policies → permission denied (backend should bypass RLS with service role key)
+
+### Testing Vector Search
+
+```python
+# Generate embedding
+embedding = await azure_ai_service.generate_embedding("algebra question")
+
+# Search
+results = await supabase_service.search_similar_questions(
+    user_id=1,
+    query_embedding=embedding,
+    limit=5
+)
+```
+
+**Note**: Embeddings are 1536 dimensions (Azure text-embedding-ada-002 model).
+
+## API Documentation
+
+When backend is running:
+- Interactive API docs: http://localhost:8000/docs
+- Alternative docs: http://localhost:8000/redoc
+
+## Migration Notes
+
+**Recent Changes** (see `SQLALCHEMY_REMOVAL_COMPLETE.md`):
+- Removed SQLAlchemy, asyncpg, vecs, pgvector, psycopg2-binary
+- All database operations now via Supabase SDK
+- `models.py` and `database.py` archived (`.old` extension)
+- Router endpoints return dicts, not ORM objects
+- Use `UserResponse(**user_dict)` to convert to Pydantic models
+
+**If you see references to SQLAlchemy**: These are outdated. Use `supabase_db` service instead.
+
+## Security Patterns
+
+1. **Backend uses service role key** - Full database access, bypasses RLS
+2. **Frontend uses anon key** - Would be restricted by RLS (but frontend doesn't directly access database)
+3. **JWT tokens** - Stored in localStorage, sent in Authorization header
+4. **Google OAuth** - No password storage, OAuth 2.0 flow with clock skew tolerance
+5. **File uploads** - Validated for image type, max 10MB, unique filenames
+
+## Troubleshooting
+
+### "Supabase not initialized" or connection errors
+- Check `SUPABASE_SERVICE_ROLE_KEY` in backend `.env`
+- Verify Supabase project is not paused
+- Check that `study` schema exists in Supabase
+
+### "Table not found" errors
+- Tables must be in `study` schema, not `public`
+- Run the SQL migration in Supabase dashboard if tables don't exist
+
+### GPT-4o Vision not detecting questions
+- Ensure image has clear crosses (✗) or wrong marks
+- Check Azure OpenAI quota and deployment status
+- Review prompt in `azure_ai_service.py` - may need tuning for different exam formats
+
+### JWT "Subject must be a string" error
+- Already fixed: JWT payload uses `str(user['id'])` not `user['id']`
+- If you see this, ensure user ID is converted to string before encoding
+
+## Testing Checklist
+
+Before deploying:
+- [ ] Google OAuth login works
+- [ ] Grade selection/update works
+- [ ] Image upload triggers AI extraction
+- [ ] Questions appear in review list
+- [ ] Status updates (pending → reviewing → understood)
+- [ ] Search finds relevant questions
+- [ ] Statistics display correctly
+- [ ] Delete question removes from database and vectors
+
+## Key Files to Read First
+
+1. `SQLALCHEMY_REMOVAL_COMPLETE.md` - Recent architecture change
+2. `backend/app/services/supabase_db_service.py` - Database operations
+3. `backend/app/services/azure_ai_service.py` - AI vision logic
+4. `backend/app/routers/questions.py` - Main workflow
+5. `src/components/Upload.js` - Frontend upload flow

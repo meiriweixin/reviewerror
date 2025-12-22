@@ -1,15 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "Bash(chmod:*)",
-      "Bash(npm install)",
+      "Bash(powershell -Command \"(Get-Content supabase_db_service.py) -replace ''\\.table\\(\"\"users\"\"\\)'', ''.table(\"\"study_users\"\")'' -replace ''\\.table\\(\"\"questions\"\"\\)'', ''.table(\"\"study_questions\"\")'' -replace ''\\.table\\(\"\"upload_history\"\"\\)'', ''.table(\"\"study_upload_history\"\")'' | Set-Content supabase_db_service.py\")",
+      "Bash(tasklist /FI 'IMAGENAME eq chrome.exe' 2)",
+      "Bash(tasklist:*)",
+      "Bash(npm install:*)",
+      "Bash(python main.py:*)",
       "Bash(python:*)",
-      "Bash(pip install:*)",
-      "Bash(w32tm /resync)",
-      "Bash(net time /set /y)",
-      "Bash(timeout:*)",
+      "Bash(timeout 10 python:*)",
       "Bash(nul)",
-      "Bash(taskkill:*)"
+      "Bash(findstr:*)",
+      "Bash(powershell -Command \"Get-Process | Where-Object {$_ProcessName -eq ''python''} | Select-Object Id, ProcessName\")",
+      "Bash(curl:*)",
+      "Bash(powershell -Command \"(Get-Content src/components/Dashboard.tsx) -replace ''bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'', ''bg-primary/10 text-primary'' -replace ''border-blue-500'', ''border-primary'' -replace ''text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'', ''text-muted-foreground hover:bg-secondary hover:text-foreground'' -replace ''border-gray-200 dark:border-gray-800'', ''border-border'' -replace ''bg-gray-50 dark:bg-gray-950'', ''bg-background'' -replace ''bg-white dark:bg-gray-900'', ''bg-card'' -replace ''text-gray-500 dark:text-gray-400'', ''text-muted-foreground'' -replace ''text-gray-600 dark:text-gray-300'', ''text-muted-foreground'' -replace ''bg-gray-100 dark:bg-gray-800'', ''bg-secondary'' -replace ''bg-gray-200 dark:bg-gray-700'', ''bg-secondary/80'' -replace ''text-gray-900 dark:text-gray-100'', ''text-foreground'' | Set-Content src/components/Dashboard.tsx\")",
+      "Bash(powershell -Command:*)",
+      "Bash(git checkout:*)",
+      "Bash(npm start)",
+      "Bash(timeout /t 10 /nobreak)"
     ],
     "deny": [],
     "ask": []

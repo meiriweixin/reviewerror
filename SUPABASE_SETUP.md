@@ -13,15 +13,24 @@ This guide will help you set up Supabase for the Student Review App's vector dat
    - **Region:** Choose closest to your users
 5. Wait for the project to be created
 
-## 2. Enable pgvector Extension
+## 2. Create Custom Schema and Enable pgvector Extension
 
 1. In your Supabase project dashboard, go to **SQL Editor**
 2. Create a new query
 3. Run the following SQL:
 
 ```sql
+-- Create the 'study' schema for our application
+CREATE SCHEMA IF NOT EXISTS study;
+
+-- Grant usage on the schema
+GRANT USAGE ON SCHEMA study TO postgres, anon, authenticated, service_role;
+GRANT ALL ON SCHEMA study TO postgres, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA study TO postgres, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA study GRANT ALL ON TABLES TO postgres, service_role;
+
 -- Enable the pgvector extension for vector operations
-CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA study;
 
 -- Verify it's installed
 SELECT * FROM pg_extension WHERE extname = 'vector';
@@ -32,8 +41,8 @@ SELECT * FROM pg_extension WHERE extname = 'vector';
 Run this SQL in the SQL Editor:
 
 ```sql
--- Create the question_embeddings table
-CREATE TABLE IF NOT EXISTS question_embeddings (
+-- Create the question_embeddings table in the study schema
+CREATE TABLE IF NOT EXISTS study.question_embeddings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id INTEGER NOT NULL,
     question_id INTEGER NOT NULL,
@@ -47,20 +56,20 @@ CREATE TABLE IF NOT EXISTS question_embeddings (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_question_embeddings_user_id ON question_embeddings(user_id);
-CREATE INDEX idx_question_embeddings_question_id ON question_embeddings(question_id);
-CREATE INDEX idx_question_embeddings_subject ON question_embeddings(subject);
-CREATE INDEX idx_question_embeddings_grade ON question_embeddings(grade);
-CREATE INDEX idx_question_embeddings_created_at ON question_embeddings(created_at);
+CREATE INDEX idx_question_embeddings_user_id ON study.question_embeddings(user_id);
+CREATE INDEX idx_question_embeddings_question_id ON study.question_embeddings(question_id);
+CREATE INDEX idx_question_embeddings_subject ON study.question_embeddings(subject);
+CREATE INDEX idx_question_embeddings_grade ON study.question_embeddings(grade);
+CREATE INDEX idx_question_embeddings_created_at ON study.question_embeddings(created_at);
 
 -- Create vector similarity search index (IVFFlat)
 -- This index speeds up similarity searches
-CREATE INDEX ON question_embeddings
+CREATE INDEX ON study.question_embeddings
 USING ivfflat (embedding vector_cosine_ops)
 WITH (lists = 100);
 
 -- Note: For larger datasets (>1M rows), consider using HNSW index:
--- CREATE INDEX ON question_embeddings
+-- CREATE INDEX ON study.question_embeddings
 -- USING hnsw (embedding vector_cosine_ops);
 ```
 
@@ -69,8 +78,8 @@ WITH (lists = 100);
 These functions make vector similarity search easier:
 
 ```sql
--- Function to search for similar questions
-CREATE OR REPLACE FUNCTION search_similar_questions(
+-- Function to search for similar questions in the study schema
+CREATE OR REPLACE FUNCTION study.search_similar_questions(
     query_embedding vector(1536),
     match_threshold float DEFAULT 0.7,
     match_count int DEFAULT 10,
@@ -101,7 +110,7 @@ BEGIN
         qe.grade,
         1 - (qe.embedding <=> query_embedding) as similarity,
         qe.metadata
-    FROM question_embeddings qe
+    FROM study.question_embeddings qe
     WHERE
         (p_user_id IS NULL OR qe.user_id = p_user_id)
         AND (p_subject IS NULL OR qe.subject = p_subject)
@@ -113,7 +122,7 @@ END;
 $$;
 
 -- Function to get question count by subject
-CREATE OR REPLACE FUNCTION get_question_count_by_subject(p_user_id int)
+CREATE OR REPLACE FUNCTION study.get_question_count_by_subject(p_user_id int)
 RETURNS TABLE (
     subject varchar,
     question_count bigint
@@ -125,7 +134,7 @@ BEGIN
     SELECT
         qe.subject,
         COUNT(*) as question_count
-    FROM question_embeddings qe
+    FROM study.question_embeddings qe
     WHERE qe.user_id = p_user_id
     GROUP BY qe.subject
     ORDER BY question_count DESC;
@@ -138,30 +147,30 @@ $$;
 Enable RLS to ensure users can only access their own questions:
 
 ```sql
--- Enable Row Level Security
-ALTER TABLE question_embeddings ENABLE ROW LEVEL SECURITY;
+-- Enable Row Level Security on the study schema table
+ALTER TABLE study.question_embeddings ENABLE ROW LEVEL SECURITY;
 
 -- Create policy for users to read their own questions
 CREATE POLICY "Users can view their own questions"
-ON question_embeddings
+ON study.question_embeddings
 FOR SELECT
 USING (true);  -- We handle auth in the application layer
 
 -- Create policy for users to insert their own questions
 CREATE POLICY "Users can insert their own questions"
-ON question_embeddings
+ON study.question_embeddings
 FOR INSERT
 WITH CHECK (true);  -- We handle auth in the application layer
 
 -- Create policy for users to update their own questions
 CREATE POLICY "Users can update their own questions"
-ON question_embeddings
+ON study.question_embeddings
 FOR UPDATE
 USING (true);  -- We handle auth in the application layer
 
 -- Create policy for users to delete their own questions
 CREATE POLICY "Users can delete their own questions"
-ON question_embeddings
+ON study.question_embeddings
 FOR DELETE
 USING (true);  -- We handle auth in the application layer
 
@@ -199,7 +208,7 @@ Run this SQL to verify everything works:
 
 ```sql
 -- Insert a test record
-INSERT INTO question_embeddings (
+INSERT INTO study.question_embeddings (
     user_id,
     question_id,
     question_text,
@@ -224,11 +233,11 @@ SELECT
     question_text,
     subject,
     created_at
-FROM question_embeddings
+FROM study.question_embeddings
 WHERE user_id = 1;
 
 -- Test similarity search function
-SELECT * FROM search_similar_questions(
+SELECT * FROM study.search_similar_questions(
     array_fill(0.1, ARRAY[1536])::vector,
     0.5,
     5,
@@ -236,7 +245,7 @@ SELECT * FROM search_similar_questions(
 );
 
 -- Clean up test data
-DELETE FROM question_embeddings WHERE user_id = 1;
+DELETE FROM study.question_embeddings WHERE user_id = 1;
 ```
 
 ## 8. Performance Optimization
@@ -245,10 +254,10 @@ For better performance with large datasets:
 
 ```sql
 -- Vacuum and analyze the table regularly
-VACUUM ANALYZE question_embeddings;
+VACUUM ANALYZE study.question_embeddings;
 
 -- Update table statistics
-ANALYZE question_embeddings;
+ANALYZE study.question_embeddings;
 
 -- Monitor index usage
 SELECT
@@ -259,7 +268,7 @@ SELECT
     idx_tup_read,
     idx_tup_fetch
 FROM pg_stat_user_indexes
-WHERE tablename = 'question_embeddings';
+WHERE schemaname = 'study' AND tablename = 'question_embeddings';
 ```
 
 ## 9. Backup Configuration
@@ -280,7 +289,7 @@ WHERE tablename = 'question_embeddings';
 - Consider using HNSW index for very large datasets (>1M rows)
 
 ### RLS blocking queries
-- Temporarily disable RLS for debugging: `ALTER TABLE question_embeddings DISABLE ROW LEVEL SECURITY;`
+- Temporarily disable RLS for debugging: `ALTER TABLE study.question_embeddings DISABLE ROW LEVEL SECURITY;`
 - Check your policies match your authentication setup
 - Review Supabase auth logs
 

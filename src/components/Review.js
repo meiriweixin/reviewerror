@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { getWrongQuestions, updateQuestionStatus, searchQuestions } from '../services/api';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
+import { getWrongQuestions, updateQuestionStatus, searchQuestions, deleteQuestion, regenerateExplanation } from '../services/api';
 
 const Review = ({ user }) => {
   const [questions, setQuestions] = useState([]);
@@ -13,6 +17,7 @@ const Review = ({ user }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => {
     loadQuestions();
@@ -65,6 +70,44 @@ const Review = ({ user }) => {
     }
   };
 
+  const handleDelete = async (questionId) => {
+    setUpdating(true);
+    try {
+      await deleteQuestion(questionId);
+      // Remove from local state
+      setQuestions(questions.filter(q => q.id !== questionId));
+      // Close modal if it's the deleted question
+      if (selectedQuestion?.id === questionId) {
+        setSelectedQuestion(null);
+      }
+      setDeleteConfirm(null);
+    } catch (error) {
+      console.error('Failed to delete question:', error);
+      alert('Failed to delete question. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleRegenerateExplanation = async (questionId) => {
+    setUpdating(true);
+    try {
+      const updatedQuestion = await regenerateExplanation(questionId);
+      // Update local state
+      setQuestions(questions.map(q =>
+        q.id === questionId ? updatedQuestion : q
+      ));
+      if (selectedQuestion?.id === questionId) {
+        setSelectedQuestion(updatedQuestion);
+      }
+    } catch (error) {
+      console.error('Failed to regenerate explanation:', error);
+      alert('Failed to regenerate explanation. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const badges = {
       pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -82,7 +125,7 @@ const Review = ({ user }) => {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {/* Subject Filter */}
           <div>
@@ -90,7 +133,7 @@ const Review = ({ user }) => {
             <select
               value={filters.subject}
               onChange={(e) => setFilters({ ...filters, subject: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               <option value="">All Subjects</option>
               <option value="Mathematics">Mathematics</option>
@@ -108,7 +151,7 @@ const Review = ({ user }) => {
             <select
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               <option value="">All Status</option>
               <option value="pending">Pending</option>
@@ -124,7 +167,7 @@ const Review = ({ user }) => {
               type="date"
               value={filters.start_date}
               onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
 
@@ -134,7 +177,7 @@ const Review = ({ user }) => {
               type="date"
               value={filters.end_date}
               onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
         </div>
@@ -147,11 +190,11 @@ const Review = ({ user }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
           <button
             onClick={handleSearch}
-            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            className="px-6 py-2 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 transition-colors"
           >
             Search
           </button>
@@ -165,7 +208,7 @@ const Review = ({ user }) => {
           <p className="mt-4 text-gray-600">Loading questions...</p>
         </div>
       ) : questions.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+        <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
@@ -177,7 +220,7 @@ const Review = ({ user }) => {
           {questions.map((question) => (
             <div
               key={question.id}
-              className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              className="bg-white rounded-2xl border border-gray-200 p-6 hover:shadow-lg transition-shadow cursor-pointer"
               onClick={() => setSelectedQuestion(question)}
             >
               <div className="flex justify-between items-start mb-4">
@@ -196,7 +239,7 @@ const Review = ({ user }) => {
                 <img
                   src={question.image_url}
                   alt="Question"
-                  className="w-full rounded-lg mb-4 max-h-48 object-cover"
+                  className="w-full rounded-2xl mb-4 max-h-48 object-cover"
                 />
               )}
 
@@ -209,7 +252,7 @@ const Review = ({ user }) => {
                     handleStatusUpdate(question.id, 'reviewing');
                   }}
                   disabled={updating}
-                  className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+                  className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-2xl hover:bg-blue-100 transition-colors disabled:opacity-50"
                 >
                   Mark Reviewing
                 </button>
@@ -219,7 +262,7 @@ const Review = ({ user }) => {
                     handleStatusUpdate(question.id, 'understood');
                   }}
                   disabled={updating}
-                  className="flex-1 px-3 py-2 text-sm bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50"
+                  className="flex-1 px-3 py-2 text-sm bg-green-50 text-green-700 rounded-2xl hover:bg-green-100 transition-colors disabled:opacity-50"
                 >
                   Mark Understood
                 </button>
@@ -232,7 +275,7 @@ const Review = ({ user }) => {
       {/* Question Detail Modal */}
       {selectedQuestion && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedQuestion(null)}>
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
               <div className="flex justify-between items-start">
                 <div>
@@ -257,7 +300,7 @@ const Review = ({ user }) => {
                 <img
                   src={selectedQuestion.image_url}
                   alt="Question"
-                  className="w-full rounded-lg mb-6"
+                  className="w-full rounded-2xl mb-6"
                 />
               )}
 
@@ -267,32 +310,83 @@ const Review = ({ user }) => {
               </div>
 
               {selectedQuestion.explanation && (
-                <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-blue-900 mb-2">AI Explanation:</h4>
-                  <p className="text-blue-800 text-sm">{selectedQuestion.explanation}</p>
+                <div className="mb-6 bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-semibold text-blue-900">AI Explanation:</h4>
+                    <button
+                      onClick={() => handleRegenerateExplanation(selectedQuestion.id)}
+                      disabled={updating}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updating ? 'Regenerating...' : 'Regenerate'}
+                    </button>
+                  </div>
+                  <div className="prose prose-sm max-w-none prose-headings:text-blue-900 prose-h2:text-base prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h2:first:mt-0 prose-p:text-blue-800 prose-p:my-2 prose-li:text-blue-800 prose-li:my-1 prose-ul:my-2 prose-ul:ml-4 prose-ol:my-2 prose-ol:ml-4 prose-strong:text-blue-900">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
+                    >
+                      {selectedQuestion.explanation}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 mb-4">
                 <button
                   onClick={() => handleStatusUpdate(selectedQuestion.id, 'pending')}
-                  className="flex-1 px-4 py-3 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors font-medium"
+                  className="flex-1 px-4 py-3 bg-yellow-50 text-yellow-700 rounded-2xl hover:bg-yellow-100 transition-colors font-medium"
                 >
                   Mark as Pending
                 </button>
                 <button
                   onClick={() => handleStatusUpdate(selectedQuestion.id, 'reviewing')}
-                  className="flex-1 px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium"
+                  className="flex-1 px-4 py-3 bg-blue-50 text-blue-700 rounded-2xl hover:bg-blue-100 transition-colors font-medium"
                 >
                   Mark as Reviewing
                 </button>
                 <button
                   onClick={() => handleStatusUpdate(selectedQuestion.id, 'understood')}
-                  className="flex-1 px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors font-medium"
+                  className="flex-1 px-4 py-3 bg-green-50 text-green-700 rounded-2xl hover:bg-green-100 transition-colors font-medium"
                 >
                   Mark as Understood
                 </button>
               </div>
+
+              <button
+                onClick={() => setDeleteConfirm(selectedQuestion.id)}
+                className="w-full px-4 py-3 bg-red-50 text-red-700 rounded-2xl hover:bg-red-100 transition-colors font-medium border border-red-200"
+              >
+                Delete Question
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Question?</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this question? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                disabled={updating}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-2xl hover:bg-gray-200 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                disabled={updating}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {updating ? 'Deleting...' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
-import Dashboard from './components/Dashboard';
-import GradeSelection from './components/GradeSelection';
+import Dashboard from './components/Dashboard.tsx';
 import { getCurrentUser } from './services/api';
 
 function App() {
@@ -53,11 +52,7 @@ function App() {
       <Routes>
         <Route
           path="/login"
-          element={user ? <Navigate to="/grade-selection" /> : <Login onLogin={handleLogin} />}
-        />
-        <Route
-          path="/grade-selection"
-          element={user ? <GradeSelection user={user} /> : <Navigate to="/login" />}
+          element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />}
         />
         <Route
           path="/dashboard"

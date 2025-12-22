@@ -86,6 +86,16 @@ export const searchQuestions = async (query) => {
   return response.data;
 };
 
+export const deleteQuestion = async (questionId) => {
+  const response = await api.delete(`/questions/${questionId}`);
+  return response.data;
+};
+
+export const regenerateExplanation = async (questionId) => {
+  const response = await api.post(`/questions/${questionId}/regenerate`);
+  return response.data;
+};
+
 // Stats APIs
 export const getStudentStats = async () => {
   const response = await api.get('/stats/');
@@ -94,6 +104,17 @@ export const getStudentStats = async () => {
 
 export const getSubjectStats = async () => {
   const response = await api.get('/stats/by-subject');
+  return response.data;
+};
+
+// Usage APIs
+export const getTokenUsage = async () => {
+  const response = await api.get('/usage/tokens');
+  return response.data;
+};
+
+export const getAllUsersTokenUsage = async () => {
+  const response = await api.get('/usage/tokens/all');
   return response.data;
 };
 

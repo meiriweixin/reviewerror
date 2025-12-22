@@ -40,3 +40,7 @@ ENV/
 
 # Uploads
 uploads/
+
+# Windows reserved names (can't be tracked by Git)
+nul
+NUL

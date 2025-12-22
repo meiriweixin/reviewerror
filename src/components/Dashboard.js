@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Upload from './Upload';
 import Review from './Review';
 import Progress from './Progress';
 import Settings from './Settings';
 
 const Dashboard = ({ user, onLogout }) => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('upload');
 
   const tabs = [
@@ -31,12 +33,20 @@ const Dashboard = ({ user, onLogout }) => {
                 <p className="text-xs text-gray-500">Welcome back, {user?.name}</p>
               </div>
             </div>
-            <button
-              onClick={onLogout}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              Logout
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/grade-selection')}
+                className="px-4 py-2 text-sm font-medium text-primary-600 bg-white border border-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+              >
+                Change Grade
+              </button>
+              <button
+                onClick={onLogout}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </header>

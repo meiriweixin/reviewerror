@@ -1,0 +1,13 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+*.md
+.env
+venv
+uploads/*
+!uploads/.gitkeep
+*.db
+*.old
+

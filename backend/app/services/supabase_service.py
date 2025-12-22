@@ -6,31 +6,36 @@ import json
 class SupabaseService:
     def __init__(self):
         # Check if Supabase is properly configured
-        if (settings.SUPABASE_SERVICE_ROLE_KEY == "your-supabase-service-role-key" or
-            len(settings.SUPABASE_SERVICE_ROLE_KEY) < 20):
+        if (settings.SUPABASE_KEY == "your-supabase-anon-key" or
+            len(settings.SUPABASE_KEY) < 20):
             print("WARNING: Supabase not configured properly. Vector search will be disabled.")
             self.client = None
             self.enabled = False
         else:
             try:
+                # Use anon key + RLS
+                # RLS policies handle authorization
                 self.client: Client = create_client(
                     settings.SUPABASE_URL,
-                    settings.SUPABASE_SERVICE_ROLE_KEY
+                    settings.SUPABASE_KEY
                 )
                 self.enabled = True
             except Exception as e:
                 print(f"WARNING: Failed to initialize Supabase: {e}")
                 self.client = None
                 self.enabled = False
-        self.table_name = "question_embeddings"
+        self.table_name = "study.question_embeddings"  # Use study schema
 
     async def create_embedding_table(self):
         """Create the embeddings table if it doesn't exist"""
         # This would typically be done via Supabase SQL editor or migration
         # Here's the SQL for reference:
         """
-        CREATE TABLE IF NOT EXISTS question_embeddings (
-            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        -- Create the study schema
+        CREATE SCHEMA IF NOT EXISTS study;
+
+        CREATE TABLE IF NOT EXISTS study.question_embeddings (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             user_id INTEGER NOT NULL,
             question_id INTEGER NOT NULL,
             question_text TEXT NOT NULL,
@@ -41,11 +46,11 @@ class SupabaseService:
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         );
 
-        CREATE INDEX ON question_embeddings USING ivfflat (embedding vector_cosine_ops)
+        CREATE INDEX ON study.question_embeddings USING ivfflat (embedding vector_cosine_ops)
         WITH (lists = 100);
 
-        CREATE INDEX idx_question_embeddings_user_id ON question_embeddings(user_id);
-        CREATE INDEX idx_question_embeddings_subject ON question_embeddings(subject);
+        CREATE INDEX idx_question_embeddings_user_id ON study.question_embeddings(user_id);
+        CREATE INDEX idx_question_embeddings_subject ON study.question_embeddings(subject);
         """
         pass
 
