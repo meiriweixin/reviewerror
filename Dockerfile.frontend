@@ -18,8 +18,9 @@ RUN npm run build
 # Install serve globally
 RUN npm install -g serve
 
-# Expose port (Railway will set PORT env var)
-EXPOSE 3000
+# Use port 8080 (serve default)
+ENV PORT=8080
+EXPOSE 8080
 
-# Serve the build folder
-CMD ["sh", "-c", "serve -s build -l ${PORT:-3000}"]
+# Serve the build folder on port 8080
+CMD ["serve", "-s", "build", "-l", "8080"]
