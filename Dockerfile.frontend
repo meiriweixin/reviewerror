@@ -1,5 +1,4 @@
 # Frontend Dockerfile - React App with serve
-# Rebuild trigger: force env vars
 FROM node:18-alpine
 
 WORKDIR /app
@@ -13,15 +12,30 @@ RUN npm ci --legacy-peer-deps
 # Copy source code
 COPY . .
 
-# Build the app
+# Declare build arguments (Railway passes these automatically)
+ARG REACT_APP_API_URL
+ARG REACT_APP_GOOGLE_CLIENT_ID
+ARG REACT_APP_SUPABASE_URL
+ARG REACT_APP_SUPABASE_ANON_KEY
+
+# Set as environment variables for the build process
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ENV REACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID
+ENV REACT_APP_SUPABASE_URL=$REACT_APP_SUPABASE_URL
+ENV REACT_APP_SUPABASE_ANON_KEY=$REACT_APP_SUPABASE_ANON_KEY
+
+# Debug: Print env vars during build (remove in production)
+RUN echo "Building with REACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID"
+
+# Build the app (env vars are now available!)
 RUN npm run build
 
 # Install serve globally
 RUN npm install -g serve
 
-# Use port 8080 (serve default)
+# Use port 8080
 ENV PORT=8080
 EXPOSE 8080
 
-# Serve the build folder on port 8080
+# Serve the build folder
 CMD ["serve", "-s", "build", "-l", "8080"]
