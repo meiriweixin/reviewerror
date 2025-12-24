@@ -5,6 +5,18 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { getWrongQuestions, updateQuestionStatus, searchQuestions, deleteQuestion, regenerateExplanation } from '../services/api';
 
+// Helper to resolve image URLs - handles both relative and absolute URLs
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return null;
+  // If it's already a full URL (Supabase Storage), use it directly
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  // For relative URLs like /uploads/xxx.jpg, prepend the API URL
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  return `${apiUrl}${imageUrl}`;
+};
+
 const Review = ({ user }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -237,7 +249,7 @@ const Review = ({ user }) => {
 
               {question.image_url && (
                 <img
-                  src={question.image_url}
+                  src={getImageUrl(question.image_url)}
                   alt="Question"
                   className="w-full rounded-2xl mb-4 max-h-48 object-cover"
                 />
@@ -298,7 +310,7 @@ const Review = ({ user }) => {
             <div className="p-6">
               {selectedQuestion.image_url && (
                 <img
-                  src={selectedQuestion.image_url}
+                  src={getImageUrl(selectedQuestion.image_url)}
                   alt="Question"
                   className="w-full rounded-2xl mb-6"
                 />
