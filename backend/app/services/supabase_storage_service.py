@@ -101,3 +101,4 @@ class SupabaseStorageService:
 
 # Singleton instance
 supabase_storage = SupabaseStorageService()
+

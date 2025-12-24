@@ -23,6 +23,7 @@ const Review = ({ user }) => {
   const [filters, setFilters] = useState({
     subject: '',
     status: 'pending',
+    grade: user?.grade || '',
     start_date: '',
     end_date: '',
   });
@@ -30,6 +31,13 @@ const Review = ({ user }) => {
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  // Watch for user.grade changes and update filters
+  useEffect(() => {
+    if (user?.grade) {
+      setFilters(prev => ({ ...prev, grade: user.grade }));
+    }
+  }, [user?.grade]);
 
   useEffect(() => {
     loadQuestions();
