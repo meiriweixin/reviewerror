@@ -154,7 +154,7 @@ const Upload = ({ user }) => {
             <div
               onDrop={handleDrop}
               onDragOver={handleDragOver}
-              className="border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center hover:border-primary-400 transition-colors cursor-pointer"
+              className="border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center hover:border-blue-400 transition-colors cursor-pointer"
             >
               <input
                 type="file"
@@ -168,7 +168,7 @@ const Upload = ({ user }) => {
                   <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
                 <p className="mt-2 text-sm text-gray-600">
-                  <span className="font-semibold text-primary-600">Click to upload</span> or drag and drop
+                  <span className="font-semibold text-blue-600">Click to upload</span> or drag and drop
                 </p>
                 <p className="text-xs text-gray-500 mt-1">PNG, JPG, JPEG up to 10MB</p>
               </label>
@@ -194,14 +194,14 @@ const Upload = ({ user }) => {
 
         {/* Upload Progress */}
         {uploadProgress && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="bg-blue-50 rounded-2xl border border-blue-200 p-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
-              <p className="text-sm font-medium text-gray-700">{uploadProgress.status}</p>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <p className="text-sm font-medium text-blue-800">{uploadProgress.status}</p>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-blue-100 rounded-full h-2.5">
               <div
-                className="bg-gradient-to-r from-primary-600 to-secondary-600 h-2 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all duration-300"
                 style={{ width: `${uploadProgress.percent}%` }}
               ></div>
             </div>
@@ -212,7 +212,7 @@ const Upload = ({ user }) => {
         <button
           type="submit"
           disabled={loading || !selectedFile || !subject}
-          className="w-full px-6 py-4 bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-2xl font-semibold hover:from-primary-700 hover:to-secondary-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
         >
           {loading ? 'Processing...' : 'Analyze & Extract Wrong Questions'}
         </button>
