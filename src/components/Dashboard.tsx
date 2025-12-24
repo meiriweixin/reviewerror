@@ -47,12 +47,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('upload');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isDark, setIsDark] = useState(false);
+  // Initialize dark mode from localStorage, default to false
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved === 'true';
+  });
   const [showNotifications, setShowNotifications] = useState(false);
   const [showGradeDropdown, setShowGradeDropdown] = useState(false);
   const [currentGrade, setCurrentGrade] = useState(user?.grade || '');
 
+  // Persist dark mode preference and apply to document
   useEffect(() => {
+    localStorage.setItem('darkMode', String(isDark));
     if (isDark) {
       document.documentElement.classList.add('dark');
     } else {
