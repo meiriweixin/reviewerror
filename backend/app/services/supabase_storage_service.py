@@ -1,6 +1,7 @@
 """
 Supabase Storage Service
 Handles file uploads to Supabase Storage for persistent image storage
+Uses anon key with public bucket policies for uploads
 """
 
 from supabase import create_client, Client
@@ -13,33 +14,36 @@ class SupabaseStorageService:
 
     def __init__(self):
         """Initialize Supabase client for storage operations"""
+        self.bucket_name = "reviewerror_question_images"
+        self.client = None
+        self.enabled = False
+
         try:
-            # Use service role key if available (bypasses RLS), otherwise use anon key
-            self.client: Client = create_client(
-                settings.SUPABASE_URL,
-                settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_KEY
-            )
-            self.bucket_name = "reviewerror_question_images"
-            self.enabled = True
-            print("✅ Supabase Storage Service initialized")
+            if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+                self.client = create_client(
+                    settings.SUPABASE_URL,
+                    settings.SUPABASE_KEY
+                )
+                self.enabled = True
+                print("✅ Supabase Storage Service initialized")
+            else:
+                print("❌ Supabase Storage disabled - missing URL or key")
         except Exception as e:
             print(f"❌ Failed to initialize Supabase Storage: {e}")
-            self.client = None
-            self.enabled = False
 
     async def upload_image(self, file_data: bytes, filename: str, content_type: str) -> str:
         """
         Upload image to Supabase Storage
-        
+
         Args:
             file_data: Raw bytes of the image file
             filename: Original filename (used to extract extension)
             content_type: MIME type of the file
-            
+
         Returns:
             Public URL of the uploaded image
         """
-        if not self.enabled:
+        if not self.enabled or not self.client:
             raise Exception("Supabase Storage is not enabled")
 
         try:
@@ -67,21 +71,21 @@ class SupabaseStorageService:
     async def delete_image(self, image_url: str) -> bool:
         """
         Delete image from Supabase Storage
-        
+
         Args:
             image_url: Full public URL of the image
-            
+
         Returns:
             True if deleted successfully, False otherwise
         """
-        if not self.enabled:
+        if not self.enabled or not self.client:
             return False
 
         try:
             # Extract filename from URL
             # URL format: https://xxx.supabase.co/storage/v1/object/public/bucket_name/filename.ext
             filename = image_url.split('/')[-1]
-            
+
             # Handle URL query parameters if present
             if '?' in filename:
                 filename = filename.split('?')[0]
@@ -97,4 +101,3 @@ class SupabaseStorageService:
 
 # Singleton instance
 supabase_storage = SupabaseStorageService()
-
