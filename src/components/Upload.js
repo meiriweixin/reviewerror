@@ -134,12 +134,12 @@ const Upload = ({ user }) => {
           <select
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
             required
           >
-            <option value="">Select a subject</option>
+            <option value="" className="text-gray-900">Select a subject</option>
             {SUBJECTS.map((sub) => (
-              <option key={sub} value={sub}>{sub}</option>
+              <option key={sub} value={sub} className="text-gray-900">{sub}</option>
             ))}
           </select>
         </div>

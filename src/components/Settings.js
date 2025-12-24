@@ -96,11 +96,11 @@ const Settings = ({ user }) => {
             <select
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
             >
-              <option value="">Select your grade</option>
+              <option value="" className="text-gray-900">Select your grade</option>
               {GRADE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
+                <option key={option.value} value={option.value} className="text-gray-900">
                   {option.label}
                 </option>
               ))}
@@ -111,14 +111,14 @@ const Settings = ({ user }) => {
             <button
               type="submit"
               disabled={saving || !grade}
-              className="px-6 py-2 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
             <button
               type="button"
               onClick={handleChangeGrade}
-              className="px-6 py-2 bg-white text-primary-600 border border-primary-600 rounded-2xl hover:bg-primary-50 transition-colors"
+              className="px-6 py-2 bg-white text-blue-600 border border-blue-600 rounded-2xl hover:bg-blue-50 transition-colors"
             >
               Go to Grade Selection
             </button>
@@ -145,25 +145,25 @@ const Settings = ({ user }) => {
           <h4 className="font-semibold text-gray-900 mb-2">Features</h4>
           <ul className="space-y-2 text-sm text-gray-600">
             <li className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
               </svg>
               AI-powered question extraction from images
             </li>
             <li className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
               </svg>
               Vector database storage with Supabase
             </li>
             <li className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
               </svg>
               Progress tracking and analytics
             </li>
             <li className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
               </svg>
               Google OAuth authentication

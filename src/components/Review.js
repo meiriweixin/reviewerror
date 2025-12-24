@@ -145,15 +145,15 @@ const Review = ({ user }) => {
             <select
               value={filters.subject}
               onChange={(e) => setFilters({ ...filters, subject: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
             >
-              <option value="">All Subjects</option>
-              <option value="Mathematics">Mathematics</option>
-              <option value="Physics">Physics</option>
-              <option value="Chemistry">Chemistry</option>
-              <option value="Biology">Biology</option>
-              <option value="English">English</option>
-              <option value="Other">Other</option>
+              <option value="" className="text-gray-900">All Subjects</option>
+              <option value="Mathematics" className="text-gray-900">Mathematics</option>
+              <option value="Physics" className="text-gray-900">Physics</option>
+              <option value="Chemistry" className="text-gray-900">Chemistry</option>
+              <option value="Biology" className="text-gray-900">Biology</option>
+              <option value="English" className="text-gray-900">English</option>
+              <option value="Other" className="text-gray-900">Other</option>
             </select>
           </div>
 
@@ -163,12 +163,12 @@ const Review = ({ user }) => {
             <select
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
             >
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="reviewing">Reviewing</option>
-              <option value="understood">Understood</option>
+              <option value="" className="text-gray-900">All Status</option>
+              <option value="pending" className="text-gray-900">Pending</option>
+              <option value="reviewing" className="text-gray-900">Reviewing</option>
+              <option value="understood" className="text-gray-900">Understood</option>
             </select>
           </div>
 
@@ -179,7 +179,7 @@ const Review = ({ user }) => {
               type="date"
               value={filters.start_date}
               onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
             />
           </div>
 
@@ -189,7 +189,7 @@ const Review = ({ user }) => {
               type="date"
               value={filters.end_date}
               onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
             />
           </div>
         </div>
@@ -202,11 +202,11 @@ const Review = ({ user }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
           />
           <button
             onClick={handleSearch}
-            className="px-6 py-2 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 transition-colors"
+            className="px-6 py-2 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors"
           >
             Search
           </button>
