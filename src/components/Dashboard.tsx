@@ -28,15 +28,18 @@ interface DashboardProps {
 }
 
 const GRADE_OPTIONS = [
+  { value: 'p1', label: 'P 1', category: 'Primary School' },
+  { value: 'p2', label: 'P 2', category: 'Primary School' },
+  { value: 'p3', label: 'P 3', category: 'Primary School' },
+  { value: 'p4', label: 'P 4', category: 'Primary School' },
+  { value: 'p5', label: 'P 5', category: 'Primary School' },
+  { value: 'p6', label: 'P 6', category: 'Primary School' },
   { value: 'sec1', label: 'SEC 1', category: 'Secondary School' },
   { value: 'sec2', label: 'SEC 2', category: 'Secondary School' },
   { value: 'sec3', label: 'SEC 3', category: 'Secondary School' },
   { value: 'sec4', label: 'SEC 4', category: 'Secondary School' },
   { value: 'jc1', label: 'JC 1', category: 'Junior College' },
   { value: 'jc2', label: 'JC 2', category: 'Junior College' },
-  { value: 'poly1', label: 'Poly 1', category: 'Polytechnic' },
-  { value: 'poly2', label: 'Poly 2', category: 'Polytechnic' },
-  { value: 'poly3', label: 'Poly 3', category: 'Polytechnic' },
   { value: 'uni1', label: 'Uni 1', category: 'University' },
   { value: 'uni2', label: 'Uni 2', category: 'University' },
   { value: 'uni3', label: 'Uni 3', category: 'University' },
@@ -119,15 +122,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     if (!grade) return 'No Grade';
 
     const gradeMap: { [key: string]: string } = {
+      'p1': 'P 1',
+      'p2': 'P 2',
+      'p3': 'P 3',
+      'p4': 'P 4',
+      'p5': 'P 5',
+      'p6': 'P 6',
       'sec1': 'SEC 1',
       'sec2': 'SEC 2',
       'sec3': 'SEC 3',
       'sec4': 'SEC 4',
       'jc1': 'JC 1',
       'jc2': 'JC 2',
-      'poly1': 'Poly 1',
-      'poly2': 'Poly 2',
-      'poly3': 'Poly 3',
       'uni1': 'Uni 1',
       'uni2': 'Uni 2',
       'uni3': 'Uni 3',
