@@ -25,11 +25,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create uploads directory
+# Create uploads directory (only used as fallback if Supabase Storage fails)
+# NOTE: Images are now stored in Supabase Storage for persistence on Railway
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Mount static files
+# Mount static files (fallback for local development)
 if os.path.exists(UPLOAD_DIR):
     app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 

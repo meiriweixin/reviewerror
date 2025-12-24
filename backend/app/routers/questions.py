@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import uuid
 import shutil
+import tempfile
 
 from app.services.supabase_db_service import supabase_db
 from app.schemas import (
@@ -15,6 +16,7 @@ from app.schemas import (
 from app.routers.auth import get_current_user
 from app.services.azure_ai_service import azure_ai_service
 from app.services.supabase_service import supabase_service
+from app.services.supabase_storage_service import supabase_storage
 from app.config import settings
 
 router = APIRouter()
@@ -29,7 +31,10 @@ async def upload_question_paper(
     """
     Upload and analyze question paper image
     Extracts wrongly answered questions using Azure GPT-4o Vision
+    Images are stored in Supabase Storage for persistence
     """
+    temp_file_path = None
+    
     try:
         # Validate file type
         if not file.content_type.startswith('image/'):
@@ -38,18 +43,35 @@ async def upload_question_paper(
                 detail="File must be an image"
             )
 
-        # Create upload directory if not exists
-        upload_dir = settings.UPLOAD_DIR
-        os.makedirs(upload_dir, exist_ok=True)
-
+        # Read file data into memory
+        file_data = await file.read()
+        
         # Generate unique filename
         file_ext = os.path.splitext(file.filename)[1]
         unique_filename = f"{uuid.uuid4()}{file_ext}"
-        file_path = os.path.join(upload_dir, unique_filename)
+        
+        # Save to temporary file for Azure AI processing
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
+            temp_file.write(file_data)
+            temp_file_path = temp_file.name
 
-        # Save uploaded file
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        # Upload to Supabase Storage for persistence
+        try:
+            image_url = await supabase_storage.upload_image(
+                file_data=file_data,
+                filename=unique_filename,
+                content_type=file.content_type
+            )
+            print(f"✅ Image uploaded to Supabase Storage: {image_url}")
+        except Exception as e:
+            print(f"❌ Supabase Storage upload failed, using local fallback: {e}")
+            # Fallback to local storage if Supabase fails
+            upload_dir = settings.UPLOAD_DIR
+            os.makedirs(upload_dir, exist_ok=True)
+            local_file_path = os.path.join(upload_dir, unique_filename)
+            with open(local_file_path, "wb") as buffer:
+                buffer.write(file_data)
+            image_url = f"/uploads/{unique_filename}"
 
         # Create upload history record
         upload_record = await supabase_db.create_upload_history(
@@ -65,9 +87,9 @@ async def upload_question_paper(
             total_completion_tokens = 0
             total_tokens = 0
 
-            # Analyze image with Azure GPT-4o Vision
+            # Analyze image with Azure GPT-4o Vision (using temp file)
             analysis_result = await azure_ai_service.analyze_question_paper(
-                file_path,
+                temp_file_path,
                 subject
             )
 
@@ -107,13 +129,13 @@ async def upload_question_paper(
                 total_completion_tokens += embedding_tokens.get("completion_tokens", 0)
                 total_tokens += embedding_tokens.get("total_tokens", 0)
 
-                # Create question record
+                # Create question record with Supabase Storage URL
                 question = await supabase_db.create_question(
                     user_id=current_user['id'],
                     subject=subject,
                     grade=grade or current_user.get('grade'),
                     question_text=question_text,
-                    image_url=f"/uploads/{unique_filename}",
+                    image_url=image_url,  # Now using Supabase Storage URL
                     explanation=explanation,
                     status="pending"
                 )
@@ -184,6 +206,13 @@ async def upload_question_paper(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Upload failed: {str(e)}"
         )
+    finally:
+        # Clean up temporary file
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except Exception:
+                pass
 
 @router.get("/wrong", response_model=List[QuestionResponse])
 async def get_wrong_questions(
@@ -372,7 +401,7 @@ async def delete_question(
     question_id: int,
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Delete a question"""
+    """Delete a question and its associated image from Supabase Storage"""
     question = await supabase_db.get_question_by_id(question_id)
 
     if not question or question.get('user_id') != current_user['id']:
@@ -388,6 +417,14 @@ async def delete_question(
             await supabase_service.delete_question_embedding(vector_id)
         except Exception as e:
             print(f"Warning: Failed to delete embedding: {e}")
+
+    # Delete image from Supabase Storage if it's a Supabase URL
+    image_url = question.get('image_url')
+    if image_url and 'supabase' in image_url:
+        try:
+            await supabase_storage.delete_image(image_url)
+        except Exception as e:
+            print(f"Warning: Failed to delete image from Supabase Storage: {e}")
 
     # Delete question
     await supabase_db.delete_question(question_id)
