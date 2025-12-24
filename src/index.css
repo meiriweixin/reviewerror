@@ -35,3 +35,16 @@ code {
 ::-webkit-scrollbar-thumb:hover {
   background: #9a3412;
 }
+
+/* Animation delay utilities for blob animations */
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-3000 {
+  animation-delay: 3s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}

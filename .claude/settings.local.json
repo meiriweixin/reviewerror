@@ -16,7 +16,8 @@
       "Bash(powershell -Command:*)",
       "Bash(git checkout:*)",
       "Bash(npm start)",
-      "Bash(timeout /t 10 /nobreak)"
+      "Bash(timeout /t 10 /nobreak)",
+      "Bash(timeout /t 15 /nobreak)"
     ],
     "deny": [],
     "ask": []
