@@ -45,7 +45,11 @@ const GRADE_OPTIONS = [
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('upload');
+  // Initialize activeTab from localStorage if available (for grade change persistence)
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem('activeTab');
+    return savedTab || 'upload';
+  });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   // Initialize dark mode from localStorage, default to false
   const [isDark, setIsDark] = useState(() => {
@@ -89,8 +93,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }
   }, [user?.grade]);
 
+  // Save activeTab to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
+
   const handleGradeChange = async (newGrade: string) => {
     try {
+      // Save current active tab before reload so we can restore it
+      localStorage.setItem('activeTab', activeTab);
+
       await updateUserGrade(newGrade);
       setCurrentGrade(newGrade);
       setShowGradeDropdown(false);
