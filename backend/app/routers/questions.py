@@ -353,6 +353,51 @@ async def regenerate_explanation(
             detail=f"Failed to regenerate explanation: {str(e)}"
         )
 
+@router.post("/{question_id}/similar")
+async def generate_similar_questions(
+    question_id: int,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Generate 3 similar practice questions for the student to try"""
+    question = await supabase_db.get_question_by_id(question_id)
+
+    if not question or question.get('user_id') != current_user['id']:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question not found"
+        )
+
+    try:
+        # Generate similar questions
+        similar_questions, tokens_used = await azure_ai_service.generate_similar_questions(
+            question.get('question_text'),
+            question.get('subject'),
+            question.get('grade')
+        )
+
+        # Track token usage
+        try:
+            await supabase_db.add_token_usage(
+                user_id=current_user['id'],
+                prompt_tokens=tokens_used.get("prompt_tokens", 0),
+                completion_tokens=tokens_used.get("completion_tokens", 0),
+                total_tokens=tokens_used.get("total_tokens", 0)
+            )
+        except Exception as e:
+            print(f"Warning: Failed to track token usage: {e}")
+
+        return {
+            "question_id": question_id,
+            "similar_questions": similar_questions,
+            "tokens_used": tokens_used
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate similar questions: {str(e)}"
+        )
+
 @router.put("/{question_id}/status", response_model=QuestionResponse)
 async def update_question_status(
     question_id: int,

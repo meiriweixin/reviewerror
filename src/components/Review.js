@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { getWrongQuestions, updateQuestionStatus, searchQuestions, deleteQuestion, regenerateExplanation } from '../services/api';
+import { getWrongQuestions, updateQuestionStatus, searchQuestions, deleteQuestion, regenerateExplanation, getSimilarQuestions } from '../services/api';
 
 // Helper to resolve image URLs - handles both relative and absolute URLs
 const getImageUrl = (imageUrl) => {
@@ -31,6 +31,8 @@ const Review = ({ user }) => {
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [similarQuestions, setSimilarQuestions] = useState({}); // { questionId: [q1, q2, q3] }
+  const [loadingSimilar, setLoadingSimilar] = useState(null); // questionId currently loading
 
   // Watch for user.grade changes and update filters
   useEffect(() => {
@@ -125,6 +127,23 @@ const Review = ({ user }) => {
       alert('Failed to regenerate explanation. Please try again.');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleGetSimilarQuestions = async (questionId) => {
+    setLoadingSimilar(questionId);
+    try {
+      const result = await getSimilarQuestions(questionId);
+      // Store similar questions in state
+      setSimilarQuestions(prev => ({
+        ...prev,
+        [questionId]: result.similar_questions
+      }));
+    } catch (error) {
+      console.error('Failed to get similar questions:', error);
+      alert('Failed to generate similar questions. Please try again.');
+    } finally {
+      setLoadingSimilar(null);
     }
   };
 
@@ -265,28 +284,56 @@ const Review = ({ user }) => {
 
               <p className="text-gray-700 text-sm line-clamp-3">{question.question_text}</p>
 
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStatusUpdate(question.id, 'reviewing');
+                    }}
+                    disabled={updating}
+                    className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-2xl hover:bg-blue-100 transition-colors disabled:opacity-50"
+                  >
+                    Mark Reviewing
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStatusUpdate(question.id, 'understood');
+                    }}
+                    disabled={updating}
+                    className="flex-1 px-3 py-2 text-sm bg-green-50 text-green-700 rounded-2xl hover:bg-green-100 transition-colors disabled:opacity-50"
+                  >
+                    Mark Understood
+                  </button>
+                </div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleStatusUpdate(question.id, 'reviewing');
+                    handleGetSimilarQuestions(question.id);
                   }}
-                  disabled={updating}
-                  className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-2xl hover:bg-blue-100 transition-colors disabled:opacity-50"
+                  disabled={loadingSimilar === question.id}
+                  className="w-full px-3 py-2 text-sm bg-purple-50 text-purple-700 rounded-2xl hover:bg-purple-100 transition-colors disabled:opacity-50 font-medium"
                 >
-                  Mark Reviewing
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleStatusUpdate(question.id, 'understood');
-                  }}
-                  disabled={updating}
-                  className="flex-1 px-3 py-2 text-sm bg-green-50 text-green-700 rounded-2xl hover:bg-green-100 transition-colors disabled:opacity-50"
-                >
-                  Mark Understood
+                  {loadingSimilar === question.id ? 'Generating...' : 'Similar Questions'}
                 </button>
               </div>
+
+              {/* Display Similar Questions if available */}
+              {similarQuestions[question.id] && (
+                <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-2xl">
+                  <h4 className="text-sm font-semibold text-purple-900 mb-3">Practice Questions:</h4>
+                  <div className="space-y-3">
+                    {similarQuestions[question.id].map((sq, idx) => (
+                      <div key={idx} className="bg-white p-3 rounded-xl border border-purple-100">
+                        <p className="text-sm text-purple-900">
+                          <span className="font-semibold">{idx + 1}.</span> {sq}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -372,6 +419,30 @@ const Review = ({ user }) => {
                   Mark as Understood
                 </button>
               </div>
+
+              <button
+                onClick={() => handleGetSimilarQuestions(selectedQuestion.id)}
+                disabled={loadingSimilar === selectedQuestion.id}
+                className="w-full px-4 py-3 bg-purple-50 text-purple-700 rounded-2xl hover:bg-purple-100 transition-colors font-medium border border-purple-200 mb-4 disabled:opacity-50"
+              >
+                {loadingSimilar === selectedQuestion.id ? 'Generating Similar Questions...' : 'Generate Similar Questions'}
+              </button>
+
+              {/* Display Similar Questions in modal if available */}
+              {similarQuestions[selectedQuestion.id] && (
+                <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-2xl">
+                  <h4 className="font-semibold text-purple-900 mb-3">Practice Questions:</h4>
+                  <div className="space-y-3">
+                    {similarQuestions[selectedQuestion.id].map((sq, idx) => (
+                      <div key={idx} className="bg-white p-4 rounded-xl border border-purple-100">
+                        <p className="text-purple-900">
+                          <span className="font-semibold text-base">{idx + 1}.</span> {sq}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={() => setDeleteConfirm(selectedQuestion.id)}

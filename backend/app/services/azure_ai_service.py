@@ -236,5 +236,98 @@ STRICT RULES:
             print(f"Error generating explanation: {e}")
             return "Unable to generate explanation at this time.", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
+    async def generate_similar_questions(
+        self,
+        question_text: str,
+        subject: str,
+        grade: Optional[str] = None
+    ) -> tuple[List[str], Dict[str, int]]:
+        """
+        Generate 3 similar practice questions based on the original question
+
+        Returns:
+            Tuple of (list of 3 similar questions, token_usage dict)
+        """
+        try:
+            grade_context = f" for {grade} level" if grade else ""
+
+            prompt = f"""Based on this {subject} question{grade_context}:
+
+"{question_text}"
+
+Generate 3 SIMILAR practice questions that test the SAME concepts and skills but with DIFFERENT numbers, scenarios, or contexts.
+
+REQUIREMENTS:
+1. Each question should be at the same difficulty level
+2. Each question should test the same underlying concept/skill
+3. Use different numbers, names, scenarios, or contexts
+4. Questions should be clearly distinct from each other
+5. Keep each question concise and clear
+6. Number the questions as 1), 2), 3)
+
+Output ONLY the 3 numbered questions, nothing else."""
+
+            response = self.client.chat.completions.create(
+                model=self.deployment_name,
+                messages=[
+                    {"role": "system", "content": "You are an expert educational question generator. Create practice questions that help students master concepts through varied practice."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=500,
+                temperature=0.7  # Higher temperature for more variety
+            )
+
+            tokens_used = {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+
+            # Parse the response to extract the 3 questions
+            result_text = response.choices[0].message.content.strip()
+
+            # Split by numbered patterns (1), 2), 3))
+            questions = []
+            lines = result_text.split('\n')
+            current_question = []
+
+            for line in lines:
+                line = line.strip()
+                # Check if line starts with a number pattern
+                if line.startswith(('1)', '2)', '3)')):
+                    if current_question:
+                        # Save previous question
+                        questions.append(' '.join(current_question).strip())
+                        current_question = []
+                    # Remove the number prefix and add the line
+                    current_question.append(line[2:].strip())
+                elif current_question:
+                    # Continue current question
+                    current_question.append(line)
+
+            # Add the last question
+            if current_question:
+                questions.append(' '.join(current_question).strip())
+
+            # Ensure we have exactly 3 questions
+            if len(questions) < 3:
+                # If parsing failed, try simple split
+                parts = result_text.split('\n\n')
+                questions = [p.strip() for p in parts if p.strip()][:3]
+
+            # Pad with placeholder if needed
+            while len(questions) < 3:
+                questions.append("Unable to generate question. Please try again.")
+
+            return questions[:3], tokens_used
+
+        except Exception as e:
+            print(f"Error generating similar questions: {e}")
+            return [
+                "Unable to generate similar question 1.",
+                "Unable to generate similar question 2.",
+                "Unable to generate similar question 3."
+            ], {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
 # Create a singleton instance
 azure_ai_service = AzureAIService()

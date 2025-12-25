@@ -96,6 +96,11 @@ export const regenerateExplanation = async (questionId) => {
   return response.data;
 };
 
+export const getSimilarQuestions = async (questionId) => {
+  const response = await api.post(`/questions/${questionId}/similar`);
+  return response.data;
+};
+
 // Stats APIs
 export const getStudentStats = async () => {
   const response = await api.get('/stats/');
