@@ -8,14 +8,14 @@ const Progress = ({ user }) => {
 
   useEffect(() => {
     loadStats();
-  }, []);
+  }, [user?.grade]);
 
   const loadStats = async () => {
     setLoading(true);
     try {
       const [generalStats, subjects] = await Promise.all([
-        getStudentStats(),
-        getSubjectStats(),
+        getStudentStats(user?.grade),
+        getSubjectStats(user?.grade),
       ]);
       setStats(generalStats);
       setSubjectStats(subjects);

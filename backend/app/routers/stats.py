@@ -9,12 +9,13 @@ router = APIRouter()
 
 @router.get("/", response_model=StudentStats)
 async def get_student_stats(
+    grade: str = None,
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Get overall statistics for the student"""
+    """Get overall statistics for the student with optional grade filter"""
 
-    # Get comprehensive user stats from Supabase
-    stats = await supabase_db.get_user_stats(current_user['id'])
+    # Get comprehensive user stats from Supabase (filtered by grade if provided)
+    stats = await supabase_db.get_user_stats(current_user['id'], grade=grade)
 
     # Get upload history count
     uploads = await supabase_db.get_upload_history_by_user(current_user['id'])
@@ -29,12 +30,13 @@ async def get_student_stats(
 
 @router.get("/by-subject", response_model=List[SubjectStats])
 async def get_subject_stats(
+    grade: str = None,
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Get statistics broken down by subject"""
+    """Get statistics broken down by subject with optional grade filter"""
 
-    # Get subject statistics from Supabase
-    subject_stats = await supabase_db.get_subject_stats(current_user['id'])
+    # Get subject statistics from Supabase (filtered by grade if provided)
+    subject_stats = await supabase_db.get_subject_stats(current_user['id'], grade=grade)
 
     # Convert to response model
     stats_list = [

@@ -102,13 +102,19 @@ export const getSimilarQuestions = async (questionId) => {
 };
 
 // Stats APIs
-export const getStudentStats = async () => {
-  const response = await api.get('/stats/');
+export const getStudentStats = async (grade = null) => {
+  const params = new URLSearchParams();
+  if (grade) params.append('grade', grade);
+
+  const response = await api.get(`/stats/?${params.toString()}`);
   return response.data;
 };
 
-export const getSubjectStats = async () => {
-  const response = await api.get('/stats/by-subject');
+export const getSubjectStats = async (grade = null) => {
+  const params = new URLSearchParams();
+  if (grade) params.append('grade', grade);
+
+  const response = await api.get(`/stats/by-subject?${params.toString()}`);
   return response.data;
 };
 

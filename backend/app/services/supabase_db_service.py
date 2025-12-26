@@ -252,6 +252,7 @@ class SupabaseDBService:
         user_id: int,
         status: Optional[str] = None,
         subject: Optional[str] = None,
+        grade: Optional[str] = None,
         limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """Get all questions for a user with optional filters"""
@@ -265,6 +266,9 @@ class SupabaseDBService:
 
         if subject:
             query = query.eq("subject", subject)
+
+        if grade:
+            query = query.eq("grade", grade)
 
         if limit:
             query = query.limit(limit)
@@ -379,10 +383,10 @@ class SupabaseDBService:
 
     # ==================== STATISTICS OPERATIONS ====================
 
-    async def get_user_stats(self, user_id: int) -> Dict[str, Any]:
-        """Get comprehensive user statistics"""
-        # Get all questions
-        all_questions = await self.get_questions_by_user(user_id)
+    async def get_user_stats(self, user_id: int, grade: Optional[str] = None) -> Dict[str, Any]:
+        """Get comprehensive user statistics with optional grade filter"""
+        # Get all questions (filtered by grade if provided)
+        all_questions = await self.get_questions_by_user(user_id, grade=grade)
 
         # Count by status
         pending = len([q for q in all_questions if q['status'] == 'pending'])
@@ -408,9 +412,9 @@ class SupabaseDBService:
             "subjects": subjects
         }
 
-    async def get_subject_stats(self, user_id: int) -> List[Dict[str, Any]]:
-        """Get statistics grouped by subject"""
-        questions = await self.get_questions_by_user(user_id)
+    async def get_subject_stats(self, user_id: int, grade: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get statistics grouped by subject with optional grade filter"""
+        questions = await self.get_questions_by_user(user_id, grade=grade)
 
         subjects = {}
         for q in questions:
