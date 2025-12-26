@@ -62,6 +62,10 @@ function App() {
           path="/"
           element={<Navigate to={user ? "/dashboard" : "/login"} />}
         />
+        <Route
+          path="/grade-selection"
+          element={<Navigate to="/dashboard" />}
+        />
       </Routes>
     </Router>
   );

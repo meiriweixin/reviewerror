@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { updateUserGrade } from '../services/api';
 
 const GRADE_OPTIONS = [
@@ -19,7 +18,6 @@ const GRADE_OPTIONS = [
 ];
 
 const Settings = ({ user }) => {
-  const navigate = useNavigate();
   const [grade, setGrade] = useState(user?.grade || '');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -31,17 +29,15 @@ const Settings = ({ user }) => {
 
     try {
       await updateUserGrade(grade);
-      setMessage({ type: 'success', text: 'Grade updated successfully!' });
+      setMessage({ type: 'success', text: 'Grade updated successfully! Refreshing page...' });
+      // Reload page to update user data across all components
+      setTimeout(() => window.location.reload(), 1500);
     } catch (error) {
       console.error('Failed to update grade:', error);
       setMessage({ type: 'error', text: 'Failed to update grade. Please try again.' });
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleChangeGrade = () => {
-    navigate('/grade-selection');
   };
 
   return (
@@ -107,22 +103,16 @@ const Settings = ({ user }) => {
             </select>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={saving || !grade}
-              className="px-6 py-2 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
-            <button
-              type="button"
-              onClick={handleChangeGrade}
-              className="px-6 py-2 bg-white text-blue-600 border border-blue-600 rounded-2xl hover:bg-blue-50 transition-colors"
-            >
-              Go to Grade Selection
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={saving || !grade}
+            className="px-6 py-2 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+          <p className="mt-3 text-sm text-gray-500">
+            Tip: You can also change your grade from the dropdown in the Dashboard sidebar.
+          </p>
         </form>
       </div>
 
