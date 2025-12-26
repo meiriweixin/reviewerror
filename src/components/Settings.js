@@ -2,15 +2,18 @@ import React, { useState } from 'react';
 import { updateUserGrade } from '../services/api';
 
 const GRADE_OPTIONS = [
+  { value: 'p1', label: 'Primary 1' },
+  { value: 'p2', label: 'Primary 2' },
+  { value: 'p3', label: 'Primary 3' },
+  { value: 'p4', label: 'Primary 4' },
+  { value: 'p5', label: 'Primary 5' },
+  { value: 'p6', label: 'Primary 6' },
   { value: 'sec1', label: 'Secondary 1' },
   { value: 'sec2', label: 'Secondary 2' },
   { value: 'sec3', label: 'Secondary 3' },
   { value: 'sec4', label: 'Secondary 4' },
   { value: 'jc1', label: 'Junior College 1' },
   { value: 'jc2', label: 'Junior College 2' },
-  { value: 'poly1', label: 'Polytechnic Year 1' },
-  { value: 'poly2', label: 'Polytechnic Year 2' },
-  { value: 'poly3', label: 'Polytechnic Year 3' },
   { value: 'uni1', label: 'University Year 1' },
   { value: 'uni2', label: 'University Year 2' },
   { value: 'uni3', label: 'University Year 3' },
