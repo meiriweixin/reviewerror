@@ -89,7 +89,7 @@ async def google_login(
             # User not in whitelist - reject login
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Your account has not been activated yet. Please complete the payment and fill in the user registration form. If you have already submitted it, please wait for the administrator to process it (within 24 hours)."
+                detail="Your account has not been activated yet. Please complete the payment and fill in the user registration form: https://docs.google.com/forms/d/e/1FAIpQLSd726bEF1RtJUUdt11WoKFTJll6WJgduBezqFAGbvH8jnCfsA/viewform?usp=dialog"
             )
 
         # User exists in whitelist - check if this is first login
