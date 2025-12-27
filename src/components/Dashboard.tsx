@@ -10,16 +10,18 @@ import {
   Moon,
   Sun,
   Bell,
-  User,
+  User as UserIcon,
   LogOut,
   GraduationCap,
-  ChevronDown
+  ChevronDown,
+  Users
 } from 'lucide-react';
 import Upload from './Upload';
 import Review from './Review';
 import Progress from './Progress';
 import Settings from './Settings';
 import Usage from './Usage';
+import User from './User';
 import { updateUserGrade } from '../services/api';
 
 interface DashboardProps {
@@ -143,11 +145,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     return gradeMap[grade.toLowerCase()] || grade.toUpperCase();
   };
 
+  // Check if current user is admin
+  const isAdmin = user?.is_admin === true;
+
   const menuItems = [
     { id: 'upload', label: 'Upload', icon: UploadIcon },
     { id: 'review', label: 'Review', icon: BookOpen },
     { id: 'progress', label: 'Progress', icon: BarChart3 },
-    { id: 'usage', label: 'Usage', icon: Activity },
+    ...(isAdmin ? [{ id: 'usage', label: 'Usage', icon: Activity }] : []),
+    ...(isAdmin ? [{ id: 'users', label: 'Users', icon: Users }] : []),
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
@@ -330,6 +336,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   {activeTab === 'review' && 'Review your wrongly answered questions'}
                   {activeTab === 'progress' && 'Track your learning progress and achievements'}
                   {activeTab === 'usage' && 'Monitor your AI token consumption and costs'}
+                  {activeTab === 'users' && 'Manage user accounts and permissions'}
                   {activeTab === 'settings' && 'Manage your account settings'}
                 </p>
               </div>
@@ -375,7 +382,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   onClick={() => setActiveTab('settings')}
                   className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                 >
-                  <User className="h-5 w-5" />
+                  <UserIcon className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -386,7 +393,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             {activeTab === 'upload' && <Upload user={user} />}
             {activeTab === 'review' && <Review user={user} />}
             {activeTab === 'progress' && <Progress user={user} />}
-            {activeTab === 'usage' && <Usage user={user} />}
+            {activeTab === 'usage' && isAdmin && <Usage user={user} />}
+            {activeTab === 'users' && isAdmin && <User user={user} />}
             {activeTab === 'settings' && <Settings user={user} />}
           </div>
         </div>

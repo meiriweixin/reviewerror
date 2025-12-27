@@ -31,7 +31,8 @@ class SupabaseDBService:
 
     async def create_user(self, email: str, name: str, google_id: str,
                          profile_picture: Optional[str] = None,
-                         grade: Optional[str] = None) -> Dict[str, Any]:
+                         grade: Optional[str] = None,
+                         is_admin: bool = False) -> Dict[str, Any]:
         """Create a new user"""
         data = {
             "email": email,
@@ -39,6 +40,7 @@ class SupabaseDBService:
             "google_id": google_id,
             "profile_picture": profile_picture,
             "grade": grade,
+            "is_admin": is_admin,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
@@ -203,6 +205,15 @@ class SupabaseDBService:
             .execute()
 
         return len(result.data) > 0
+
+    async def get_all_users(self) -> List[Dict[str, Any]]:
+        """Get all users (admin only)"""
+        result = self.client.table("study_users")\
+            .select("id, email, name, grade, is_admin, created_at")\
+            .order("created_at", desc=True)\
+            .execute()
+
+        return result.data if result.data else []
 
     # ==================== QUESTION OPERATIONS ====================
 

@@ -25,6 +25,7 @@ class UserResponse(UserBase):
     id: int
     grade: Optional[str] = None
     profile_picture: Optional[str] = None
+    is_admin: Optional[bool] = False
     created_at: datetime
 
     class Config:
@@ -102,3 +103,20 @@ class SubjectStats(BaseModel):
 
 class SubjectStatsResponse(BaseModel):
     subjects: List[SubjectStats]
+
+# Admin User Management Schemas
+class AdminUserCreate(BaseModel):
+    email: EmailStr
+    name: str
+    grade: Optional[str] = None
+
+class UserListResponse(BaseModel):
+    id: int
+    email: str
+    name: str
+    grade: Optional[str] = None
+    is_admin: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
