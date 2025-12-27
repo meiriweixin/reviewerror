@@ -62,6 +62,7 @@ export const uploadImage = async (file, subject, grade) => {
 export const getWrongQuestions = async (filters = {}) => {
   const params = new URLSearchParams();
   if (filters.subject) params.append('subject', filters.subject);
+  if (filters.category) params.append('category', filters.category);
   if (filters.grade) params.append('grade', filters.grade);
   if (filters.start_date) params.append('start_date', filters.start_date);
   if (filters.end_date) params.append('end_date', filters.end_date);

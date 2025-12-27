@@ -218,6 +218,7 @@ async def upload_question_paper(
 async def get_wrong_questions(
     subject: Optional[str] = None,
     grade: Optional[str] = None,
+    category: Optional[str] = None,
     status: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
@@ -228,7 +229,8 @@ async def get_wrong_questions(
     questions = await supabase_db.get_questions_by_user(
         user_id=current_user['id'],
         status=status,
-        subject=subject
+        subject=subject,
+        category=category
     )
 
     # Apply additional filters (date, grade) in memory

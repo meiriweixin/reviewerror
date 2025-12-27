@@ -223,6 +223,7 @@ class SupabaseDBService:
         subject: str,
         question_text: str,
         grade: Optional[str] = None,
+        category: Optional[str] = None,
         image_url: Optional[str] = None,
         image_snippet_url: Optional[str] = None,
         explanation: Optional[str] = None,
@@ -236,6 +237,7 @@ class SupabaseDBService:
             "subject": subject,
             "question_text": question_text,
             "grade": grade,
+            "category": category,
             "image_url": image_url,
             "image_snippet_url": image_snippet_url,
             "explanation": explanation,
@@ -264,6 +266,7 @@ class SupabaseDBService:
         status: Optional[str] = None,
         subject: Optional[str] = None,
         grade: Optional[str] = None,
+        category: Optional[str] = None,
         limit: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """Get all questions for a user with optional filters"""
@@ -280,6 +283,9 @@ class SupabaseDBService:
 
         if grade:
             query = query.eq("grade", grade)
+
+        if category:
+            query = query.eq("category", category)
 
         if limit:
             query = query.limit(limit)

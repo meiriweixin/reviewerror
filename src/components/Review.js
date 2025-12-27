@@ -22,11 +22,22 @@ const Review = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     subject: '',
+    category: '',
     status: 'pending',
     grade: user?.grade || '',
     start_date: '',
     end_date: '',
   });
+
+  // Category options based on selected subject
+  const categoryOptions = {
+    Mathematics: ['Algebra', 'Geometry', 'Arithmetic', 'Calculus', 'Statistics', 'Trigonometry'],
+    Physics: ['Mechanics', 'Electricity', 'Magnetism', 'Thermodynamics', 'Optics', 'Modern Physics'],
+    Chemistry: ['Organic Chemistry', 'Inorganic Chemistry', 'Physical Chemistry', 'Analytical Chemistry'],
+    Biology: ['Cell Biology', 'Genetics', 'Evolution', 'Ecology', 'Human Biology', 'Botany'],
+    English: ['Grammar', 'Comprehension', 'Composition', 'Literature', 'Vocabulary'],
+    Other: []
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [updating, setUpdating] = useState(false);
@@ -40,6 +51,11 @@ const Review = ({ user }) => {
       setFilters(prev => ({ ...prev, grade: user.grade }));
     }
   }, [user?.grade]);
+
+  // Handle subject change - reset category when subject changes
+  const handleSubjectChange = (newSubject) => {
+    setFilters({ ...filters, subject: newSubject, category: '' });
+  };
 
   useEffect(() => {
     loadQuestions();
@@ -165,13 +181,13 @@ const Review = ({ user }) => {
 
       {/* Filters and Search */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
           {/* Subject Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Subject</label>
             <select
               value={filters.subject}
-              onChange={(e) => setFilters({ ...filters, subject: e.target.value })}
+              onChange={(e) => handleSubjectChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100"
             >
               <option value="" className="text-gray-900">All Subjects</option>
@@ -181,6 +197,24 @@ const Review = ({ user }) => {
               <option value="Biology" className="text-gray-900">Biology</option>
               <option value="English" className="text-gray-900">English</option>
               <option value="Other" className="text-gray-900">Other</option>
+            </select>
+          </div>
+
+          {/* Category Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
+            <select
+              value={filters.category}
+              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+              disabled={!filters.subject}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="" className="text-gray-900">
+                {filters.subject ? 'All Categories' : 'Select Subject First'}
+              </option>
+              {filters.subject && categoryOptions[filters.subject]?.map((cat) => (
+                <option key={cat} value={cat} className="text-gray-900">{cat}</option>
+              ))}
             </select>
           </div>
 
@@ -264,8 +298,15 @@ const Review = ({ user }) => {
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-50">{question.subject}</h3>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-50">{question.subject}</h3>
+                    {question.category && (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100/80 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        {question.category}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
                     {new Date(question.created_at).toLocaleDateString()}
                   </p>
                 </div>
@@ -351,7 +392,14 @@ const Review = ({ user }) => {
             <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-50">{selectedQuestion.subject}</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-50">{selectedQuestion.subject}</h3>
+                    {selectedQuestion.category && (
+                      <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100/80 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        {selectedQuestion.category}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Uploaded on {new Date(selectedQuestion.created_at).toLocaleDateString()}
                   </p>

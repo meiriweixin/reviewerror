@@ -48,6 +48,7 @@ class QuestionBase(BaseModel):
     subject: str
     question_text: str
     grade: Optional[str] = None
+    category: Optional[str] = None
 
 class QuestionCreate(QuestionBase):
     image_url: Optional[str] = None
