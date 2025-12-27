@@ -34,8 +34,8 @@ const Progress = ({ user }) => {
   if (loading) {
     return (
       <div className="text-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading progress...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600 dark:text-gray-300">Loading progress...</p>
       </div>
     );
   }
@@ -48,13 +48,13 @@ const Progress = ({ user }) => {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Your Progress</h2>
-        <p className="text-gray-600 mt-1">Track your learning journey across all subjects</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-50">Your Progress</h2>
+        <p className="text-gray-600 dark:text-gray-300 mt-1">Track your learning journey across all subjects</p>
       </div>
 
       {/* Overall Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl p-6 text-white shadow-lg">
+        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium opacity-90">Total Questions</h3>
             <svg className="w-8 h-8 opacity-80" fill="currentColor" viewBox="0 0 20 20">
@@ -65,7 +65,7 @@ const Progress = ({ user }) => {
           <p className="text-3xl font-bold">{totalQuestions}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg">
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium opacity-90">Understood</h3>
             <svg className="w-8 h-8 opacity-80" fill="currentColor" viewBox="0 0 20 20">
@@ -87,7 +87,7 @@ const Progress = ({ user }) => {
           <p className="text-sm opacity-90 mt-1">{calculatePercentage(reviewingQuestions, totalQuestions)}% in progress</p>
         </div>
 
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl p-6 text-white shadow-lg">
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium opacity-90">Pending</h3>
             <svg className="w-8 h-8 opacity-80" fill="currentColor" viewBox="0 0 20 20">
@@ -100,74 +100,74 @@ const Progress = ({ user }) => {
       </div>
 
       {/* Overall Progress Bar */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-8">
-        <h3 className="font-semibold text-gray-900 mb-4">Overall Completion</h3>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 p-6 mb-8">
+        <h3 className="font-semibold text-gray-900 dark:text-gray-50 mb-4">Overall Completion</h3>
         <div className="relative pt-1">
           <div className="flex mb-2 items-center justify-between">
             <div>
-              <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-primary-600 bg-primary-200">
+              <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40">
                 Progress
               </span>
             </div>
             <div className="text-right">
-              <span className="text-xs font-semibold inline-block text-primary-600">
+              <span className="text-xs font-semibold inline-block text-indigo-700 dark:text-indigo-300">
                 {calculatePercentage(understoodQuestions, totalQuestions)}%
               </span>
             </div>
           </div>
-          <div className="overflow-hidden h-4 mb-4 text-xs flex rounded-full bg-gray-200">
+          <div className="overflow-hidden h-4 mb-4 text-xs flex rounded-full bg-gray-200 dark:bg-slate-700">
             <div
               style={{ width: `${calculatePercentage(understoodQuestions, totalQuestions)}%` }}
-              className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-primary-600 to-secondary-600 transition-all duration-500"
+              className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-indigo-600 to-purple-600 transition-all duration-500"
             ></div>
           </div>
         </div>
       </div>
 
       {/* Subject-wise Breakdown */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        <h3 className="font-semibold text-gray-900 mb-6">Subject-wise Performance</h3>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 p-6">
+        <h3 className="font-semibold text-gray-900 dark:text-gray-50 mb-6">Subject-wise Performance</h3>
 
         {subjectStats.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-500">No subject data available yet. Start uploading questions!</p>
+            <p className="text-gray-500 dark:text-gray-400">No subject data available yet. Start uploading questions!</p>
           </div>
         ) : (
           <div className="space-y-6">
             {subjectStats.map((subject) => (
-              <div key={subject.subject} className="border-b border-gray-100 pb-6 last:border-0">
+              <div key={subject.subject} className="border-b border-gray-100 dark:border-slate-800 pb-6 last:border-0">
                 <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-medium text-gray-900">{subject.subject}</h4>
-                  <span className="text-sm text-gray-500">{subject.total_questions} questions</span>
+                  <h4 className="font-medium text-gray-900 dark:text-gray-50">{subject.subject}</h4>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">{subject.total_questions} questions</span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 mb-3">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-green-600">{subject.understood || 0}</p>
-                    <p className="text-xs text-gray-500">Understood</p>
+                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{subject.understood || 0}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Understood</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-600">{subject.reviewing || 0}</p>
-                    <p className="text-xs text-gray-500">Reviewing</p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{subject.reviewing || 0}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Reviewing</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-yellow-600">{subject.pending || 0}</p>
-                    <p className="text-xs text-gray-500">Pending</p>
+                    <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{subject.pending || 0}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Pending</p>
                   </div>
                 </div>
 
                 <div className="relative pt-1">
-                  <div className="overflow-hidden h-2 text-xs flex rounded-full bg-gray-200">
+                  <div className="overflow-hidden h-2 text-xs flex rounded-full bg-gray-200 dark:bg-slate-700">
                     <div
                       style={{ width: `${calculatePercentage(subject.understood || 0, subject.total_questions)}%` }}
-                      className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500"
+                      className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-emerald-500"
                     ></div>
                     <div
                       style={{ width: `${calculatePercentage(subject.reviewing || 0, subject.total_questions)}%` }}
                       className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
                     ></div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 text-right">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-right">
                     {calculatePercentage(subject.understood || 0, subject.total_questions)}% mastered
                   </p>
                 </div>
@@ -178,33 +178,33 @@ const Progress = ({ user }) => {
       </div>
 
       {/* Achievements Section */}
-      <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-2xl border border-primary-100 p-6 mt-8">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <svg className="w-5 h-5 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
+      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-2xl border border-indigo-100 dark:border-indigo-900/50 p-6 mt-8">
+        <h3 className="font-semibold text-gray-900 dark:text-gray-50 mb-4 flex items-center gap-2">
+          <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
           </svg>
           Keep Going!
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {totalQuestions >= 10 && (
-            <div className="bg-white rounded-2xl p-4 border border-primary-200">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-indigo-200 dark:border-indigo-900/50">
               <div className="text-2xl mb-2">🎯</div>
-              <p className="font-semibold text-gray-900">Question Hunter</p>
-              <p className="text-xs text-gray-600">Uploaded 10+ questions</p>
+              <p className="font-semibold text-gray-900 dark:text-gray-50">Question Hunter</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">Uploaded 10+ questions</p>
             </div>
           )}
           {understoodQuestions >= 5 && (
-            <div className="bg-white rounded-2xl p-4 border border-primary-200">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-indigo-200 dark:border-indigo-900/50">
               <div className="text-2xl mb-2">⭐</div>
-              <p className="font-semibold text-gray-900">Quick Learner</p>
-              <p className="text-xs text-gray-600">Mastered 5+ questions</p>
+              <p className="font-semibold text-gray-900 dark:text-gray-50">Quick Learner</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">Mastered 5+ questions</p>
             </div>
           )}
           {calculatePercentage(understoodQuestions, totalQuestions) >= 50 && (
-            <div className="bg-white rounded-2xl p-4 border border-primary-200">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-indigo-200 dark:border-indigo-900/50">
               <div className="text-2xl mb-2">🏆</div>
-              <p className="font-semibold text-gray-900">Half Way Hero</p>
-              <p className="text-xs text-gray-600">50% completion rate</p>
+              <p className="font-semibold text-gray-900 dark:text-gray-50">Half Way Hero</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">50% completion rate</p>
             </div>
           )}
         </div>

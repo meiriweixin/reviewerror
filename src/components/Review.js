@@ -275,15 +275,16 @@ const Review = ({ user }) => {
               </div>
 
               {question.image_url && (
-                <img
-                  src={getImageUrl(question.image_url)}
-                  alt="Question"
-                  className="w-full rounded-2xl mb-4 max-h-48 object-cover"
-                  style={{
-                    filter: 'grayscale(100%) contrast(120%) brightness(105%)',
-                    mixBlendMode: 'multiply'
-                  }}
-                />
+                <div className="mb-4 dark:bg-white dark:p-4 dark:rounded-2xl">
+                  <img
+                    src={getImageUrl(question.image_url)}
+                    alt="Question"
+                    className="w-full rounded-xl max-h-48 object-cover"
+                    style={{
+                      filter: 'grayscale(100%) contrast(120%) brightness(105%)'
+                    }}
+                  />
+                </div>
               )}
 
               <p className="text-gray-700 dark:text-gray-300 text-sm line-clamp-3">{question.question_text}</p>
@@ -368,15 +369,16 @@ const Review = ({ user }) => {
 
             <div className="p-6">
               {selectedQuestion.image_url && (
-                <img
-                  src={getImageUrl(selectedQuestion.image_url)}
-                  alt="Question"
-                  className="w-full rounded-2xl mb-6"
-                  style={{
-                    filter: 'grayscale(100%) contrast(120%) brightness(105%)',
-                    mixBlendMode: 'multiply'
-                  }}
-                />
+                <div className="mb-6 dark:bg-white dark:p-4 dark:rounded-2xl">
+                  <img
+                    src={getImageUrl(selectedQuestion.image_url)}
+                    alt="Question"
+                    className="w-full rounded-xl"
+                    style={{
+                      filter: 'grayscale(100%) contrast(120%) brightness(105%)'
+                    }}
+                  />
+                </div>
               )}
 
               <div className="mb-6">
