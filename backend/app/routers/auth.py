@@ -82,19 +82,27 @@ async def google_login(
         name = idinfo.get('name', email.split('@')[0])
         picture = idinfo.get('picture')
 
-        # Check if user exists
-        user = await supabase_db.get_user_by_google_id(google_id)
+        # WHITELIST CHECK: Only allow users that admin has pre-added
+        user = await supabase_db.get_user_by_email(email)
 
         if not user:
-            # Create new user
-            user = await supabase_db.create_user(
-                email=email,
-                name=name,
+            # User not in whitelist - reject login
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your account has not been activated yet. Please complete the payment and fill in the user registration form. If you have already submitted it, please wait for the administrator to process it (within 24 hours)."
+            )
+
+        # User exists in whitelist - check if this is first login
+        if user.get('google_id', '').startswith('placeholder_'):
+            # First login - update google_id
+            user = await supabase_db.update_user(
+                user_id=user['id'],
                 google_id=google_id,
+                name=name,
                 profile_picture=picture
             )
         else:
-            # Update existing user info
+            # Returning user - update profile info
             user = await supabase_db.update_user(
                 user_id=user['id'],
                 name=name,
