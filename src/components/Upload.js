@@ -25,6 +25,7 @@ const Upload = ({ user }) => {
   const [preview, setPreview] = useState(null);
   const [subject, setSubject] = useState('');
   const [category, setCategory] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
   const [grade, setGrade] = useState(user?.grade || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -60,6 +61,7 @@ const Upload = ({ user }) => {
   const handleSubjectChange = (newSubject) => {
     setSubject(newSubject);
     setCategory(''); // Reset category when subject changes
+    setCustomCategory(''); // Reset custom category when subject changes
   };
 
   const handleSubmit = async (e) => {
@@ -75,6 +77,12 @@ const Upload = ({ user }) => {
       return;
     }
 
+    // Validate custom category if "custom" is selected
+    if (category === 'custom' && !customCategory.trim()) {
+      setError('Please enter a custom category');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setSuccess('');
@@ -82,7 +90,11 @@ const Upload = ({ user }) => {
 
     try {
       setUploadProgress({ status: 'Analyzing image with AI...', percent: 60 });
-      const result = await uploadImage(selectedFile, subject, grade, category);
+
+      // Use custom category if "custom" is selected, otherwise use selected category
+      const finalCategory = category === 'custom' ? customCategory.trim() : category;
+
+      const result = await uploadImage(selectedFile, subject, grade, finalCategory);
 
       setUploadProgress({ status: 'Extracting wrong questions...', percent: 90 });
 
@@ -93,6 +105,7 @@ const Upload = ({ user }) => {
         setPreview(null);
         setSubject('');
         setCategory('');
+        setCustomCategory('');
         setLoading(false);
       }, 500);
 
@@ -170,7 +183,12 @@ const Upload = ({ user }) => {
           </label>
           <select
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              if (e.target.value !== 'custom') {
+                setCustomCategory(''); // Clear custom input when switching away from custom
+              }
+            }}
             disabled={!subject || !CATEGORY_OPTIONS[subject] || CATEGORY_OPTIONS[subject].length === 0}
             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -180,8 +198,29 @@ const Upload = ({ user }) => {
             {subject && CATEGORY_OPTIONS[subject]?.map((cat) => (
               <option key={cat} value={cat} className="text-gray-900">{cat}</option>
             ))}
+            {subject && CATEGORY_OPTIONS[subject] && CATEGORY_OPTIONS[subject].length > 0 && (
+              <option value="custom" className="text-gray-900">✏️ Custom...</option>
+            )}
           </select>
-          {subject && CATEGORY_OPTIONS[subject] && CATEGORY_OPTIONS[subject].length > 0 && (
+
+          {/* Custom Category Input - shows when "Custom..." is selected */}
+          {category === 'custom' && (
+            <div className="mt-3">
+              <input
+                type="text"
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                placeholder="Enter your custom category (e.g., Linear Equations, Quadratic Functions)"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                maxLength={50}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Create your own category for better organization
+              </p>
+            </div>
+          )}
+
+          {subject && CATEGORY_OPTIONS[subject] && CATEGORY_OPTIONS[subject].length > 0 && category !== 'custom' && (
             <p className="text-xs text-gray-500 mt-2">
               Help organize questions by topic for easier filtering and review
             </p>
