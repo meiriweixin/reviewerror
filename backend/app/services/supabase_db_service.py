@@ -452,6 +452,41 @@ class SupabaseDBService:
 
         return list(subjects.values())
 
+    async def get_category_stats(
+        self,
+        user_id: int,
+        subject: Optional[str] = None,
+        grade: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get statistics grouped by category with optional subject and grade filters"""
+        questions = await self.get_questions_by_user(user_id, grade=grade)
+
+        # Filter by subject if provided
+        if subject:
+            questions = [q for q in questions if q['subject'] == subject]
+
+        categories = {}
+        for q in questions:
+            category = q.get('category') or 'Uncategorized'
+            if category not in categories:
+                categories[category] = {
+                    'category': category,
+                    'subject': q['subject'],
+                    'total': 0,
+                    'pending': 0,
+                    'reviewing': 0,
+                    'understood': 0
+                }
+
+            categories[category]['total'] += 1
+            categories[category][q['status']] += 1
+
+        # Sort by total questions descending
+        result = list(categories.values())
+        result.sort(key=lambda x: x['total'], reverse=True)
+
+        return result
+
     # ==================== PAPER OPERATIONS ====================
 
     async def create_paper(

@@ -122,6 +122,15 @@ export const getSubjectStats = async (grade = null) => {
   return response.data;
 };
 
+export const getCategoryStats = async (subject = null, grade = null) => {
+  const params = new URLSearchParams();
+  if (subject) params.append('subject', subject);
+  if (grade) params.append('grade', grade);
+
+  const response = await api.get(`/stats/by-category?${params.toString()}`);
+  return response.data;
+};
+
 // Usage APIs
 export const getTokenUsage = async () => {
   const response = await api.get('/usage/tokens');

@@ -54,3 +54,21 @@ async def get_subject_stats(
     stats_list.sort(key=lambda x: x.total_questions, reverse=True)
 
     return stats_list
+
+
+@router.get("/by-category")
+async def get_category_stats(
+    subject: str = None,
+    grade: str = None,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get statistics broken down by category with optional subject and grade filters"""
+
+    # Get category statistics from Supabase
+    category_stats = await supabase_db.get_category_stats(
+        current_user['id'],
+        subject=subject,
+        grade=grade
+    )
+
+    return category_stats

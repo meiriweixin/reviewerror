@@ -1,14 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { getStudentStats, getSubjectStats } from '../services/api';
+import { getStudentStats, getSubjectStats, getCategoryStats } from '../services/api';
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
+
+const COLORS = {
+  understood: '#10b981',
+  reviewing: '#3b82f6',
+  pending: '#f59e0b',
+  total: '#8b5cf6'
+};
 
 const Progress = ({ user }) => {
   const [stats, setStats] = useState(null);
   const [subjectStats, setSubjectStats] = useState([]);
+  const [categoryStats, setCategoryStats] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadStats();
   }, [user?.grade]);
+
+  useEffect(() => {
+    if (selectedSubject) {
+      loadCategoryStats(selectedSubject);
+    }
+  }, [selectedSubject, user?.grade]);
 
   const loadStats = async () => {
     setLoading(true);
@@ -19,6 +47,11 @@ const Progress = ({ user }) => {
       ]);
       setStats(generalStats);
       setSubjectStats(subjects);
+
+      // Auto-select first subject if available
+      if (subjects.length > 0 && !selectedSubject) {
+        setSelectedSubject(subjects[0].subject);
+      }
     } catch (error) {
       console.error('Failed to load stats:', error);
     } finally {
@@ -26,9 +59,40 @@ const Progress = ({ user }) => {
     }
   };
 
+  const loadCategoryStats = async (subject) => {
+    try {
+      const categories = await getCategoryStats(subject, user?.grade);
+      setCategoryStats(categories);
+    } catch (error) {
+      console.error('Failed to load category stats:', error);
+    }
+  };
+
   const calculatePercentage = (value, total) => {
     if (!total) return 0;
     return Math.round((value / total) * 100);
+  };
+
+  // Prepare data for pie chart (overall status distribution)
+  const getPieChartData = () => {
+    if (!stats) return [];
+    return [
+      { name: 'Understood', value: stats.understood_questions, color: COLORS.understood },
+      { name: 'Reviewing', value: stats.reviewing_questions, color: COLORS.reviewing },
+      { name: 'Pending', value: stats.pending_questions, color: COLORS.pending },
+    ].filter(item => item.value > 0);
+  };
+
+  // Prepare data for category bar chart
+  const getCategoryBarChartData = () => {
+    return categoryStats.map(cat => ({
+      name: cat.category.length > 15 ? cat.category.substring(0, 15) + '...' : cat.category,
+      fullName: cat.category,
+      Understood: cat.understood,
+      Reviewing: cat.reviewing,
+      Pending: cat.pending,
+      Total: cat.total
+    }));
   };
 
   if (loading) {
@@ -49,10 +113,13 @@ const Progress = ({ user }) => {
     <div className="max-w-7xl mx-auto">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-50">Your Progress</h2>
-        <p className="text-gray-600 dark:text-gray-300 mt-1">Track your learning journey across all subjects</p>
+        <p className="text-gray-600 dark:text-gray-300 mt-1">
+          Track your learning journey across all subjects
+          {user?.grade && ` (Grade: ${user.grade.toUpperCase()})`}
+        </p>
       </div>
 
-      {/* Overall Stats */}
+      {/* Overall Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-2">
@@ -99,30 +166,137 @@ const Progress = ({ user }) => {
         </div>
       </div>
 
-      {/* Overall Progress Bar */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 p-6 mb-8">
-        <h3 className="font-semibold text-gray-900 dark:text-gray-50 mb-4">Overall Completion</h3>
-        <div className="relative pt-1">
-          <div className="flex mb-2 items-center justify-between">
-            <div>
-              <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40">
-                Progress
-              </span>
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Overall Status Distribution Pie Chart */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 p-6">
+          <h3 className="font-semibold text-gray-900 dark:text-gray-50 mb-4">Overall Status Distribution</h3>
+          {totalQuestions > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={getPieChartData()}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {getPieChartData().map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+              No data available yet
             </div>
-            <div className="text-right">
-              <span className="text-xs font-semibold inline-block text-indigo-700 dark:text-indigo-300">
-                {calculatePercentage(understoodQuestions, totalQuestions)}%
-              </span>
+          )}
+        </div>
+
+        {/* Overall Progress Bar */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 p-6">
+          <h3 className="font-semibold text-gray-900 dark:text-gray-50 mb-4">Overall Completion</h3>
+          <div className="relative pt-1">
+            <div className="flex mb-2 items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40">
+                  Progress
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-semibold inline-block text-indigo-700 dark:text-indigo-300">
+                  {calculatePercentage(understoodQuestions, totalQuestions)}%
+                </span>
+              </div>
+            </div>
+            <div className="overflow-hidden h-4 mb-4 text-xs flex rounded-full bg-gray-200 dark:bg-slate-700">
+              <div
+                style={{ width: `${calculatePercentage(understoodQuestions, totalQuestions)}%` }}
+                className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-indigo-600 to-purple-600 transition-all duration-500"
+              ></div>
             </div>
           </div>
-          <div className="overflow-hidden h-4 mb-4 text-xs flex rounded-full bg-gray-200 dark:bg-slate-700">
-            <div
-              style={{ width: `${calculatePercentage(understoodQuestions, totalQuestions)}%` }}
-              className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-indigo-600 to-purple-600 transition-all duration-500"
-            ></div>
+
+          {/* Subject Summary Table */}
+          <div className="mt-6">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">By Subject</h4>
+            <div className="space-y-2">
+              {subjectStats.slice(0, 5).map((subject) => (
+                <div key={subject.subject} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">{subject.subject}</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {calculatePercentage(subject.understood || 0, subject.total_questions)}%
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Category Analytics Section */}
+      {subjectStats.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 p-6 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-50">Category Performance Analysis</h3>
+            <select
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              className="px-4 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {subjectStats.map((subject) => (
+                <option key={subject.subject} value={subject.subject}>
+                  {subject.subject}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {categoryStats.length > 0 ? (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={getCategoryBarChartData()}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fill: '#9ca3af', fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                />
+                <YAxis tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1f2937',
+                    border: '1px solid #374151',
+                    borderRadius: '0.5rem',
+                    color: '#f3f4f6'
+                  }}
+                  labelFormatter={(label, payload) => {
+                    if (payload && payload[0]) {
+                      return payload[0].payload.fullName;
+                    }
+                    return label;
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="Understood" fill={COLORS.understood} />
+                <Bar dataKey="Reviewing" fill={COLORS.reviewing} />
+                <Bar dataKey="Pending" fill={COLORS.pending} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+              No category data available for {selectedSubject}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Subject-wise Breakdown */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700 p-6">
