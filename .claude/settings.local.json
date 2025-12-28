@@ -20,7 +20,8 @@
       "Bash(timeout /t 15 /nobreak)",
       "Bash(npm run build:*)",
       "Bash(Select-String -Pattern \"Compiled|Failed|error|warning\")",
-      "Bash(Select-Object -First 10)"
+      "Bash(Select-Object -First 10)",
+      "Bash(timeout /t 5 /nobreak)"
     ],
     "deny": [],
     "ask": []

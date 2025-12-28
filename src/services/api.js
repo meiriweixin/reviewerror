@@ -149,4 +149,63 @@ export const deleteUser = async (userId) => {
   return response.data;
 };
 
+// Paper Library APIs
+export const getAllPapers = async (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.subject) params.append('subject', filters.subject);
+  if (filters.grade) params.append('grade', filters.grade);
+  if (filters.limit) params.append('limit', filters.limit);
+
+  const response = await api.get(`/papers?${params.toString()}`);
+  return response.data;
+};
+
+export const getPaperById = async (paperId) => {
+  const response = await api.get(`/papers/${paperId}`);
+  return response.data;
+};
+
+export const uploadPaper = async (file, title, subject, grade = '', year = null) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('title', title);
+  formData.append('subject', subject);
+  if (grade) formData.append('grade', grade);
+  if (year) formData.append('year', year);
+
+  const response = await api.post('/papers/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const downloadPaper = async (paperId) => {
+  const response = await api.post(`/papers/${paperId}/download`);
+  return response.data;
+};
+
+export const openPracticeMode = async (paperId) => {
+  const response = await api.post(`/papers/${paperId}/practice`);
+  return response.data;
+};
+
+export const captureQuestion = async (file, subject, grade, category, note, source_paper_id) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('subject', subject);
+  formData.append('source_paper_id', source_paper_id);
+  if (grade) formData.append('grade', grade);
+  if (category) formData.append('category', category);
+  if (note) formData.append('note', note);
+
+  const response = await api.post('/questions/capture', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
 export default api;

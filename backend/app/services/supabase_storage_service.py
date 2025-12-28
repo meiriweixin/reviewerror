@@ -10,11 +10,12 @@ import uuid
 
 
 class SupabaseStorageService:
-    """Service for handling image uploads to Supabase Storage"""
+    """Service for handling image and PDF uploads to Supabase Storage"""
 
     def __init__(self):
         """Initialize Supabase client for storage operations"""
         self.bucket_name = "reviewerror_question_images"
+        self.papers_bucket_name = "reviewerror_exam_papers"
         self.client = None
         self.enabled = False
 
@@ -96,6 +97,73 @@ class SupabaseStorageService:
 
         except Exception as e:
             print(f"❌ Error deleting from Supabase Storage: {e}")
+            return False
+
+    async def upload_pdf(self, file_data: bytes, filename: str, content_type: str) -> str:
+        """
+        Upload PDF to Supabase Storage (papers bucket)
+
+        Args:
+            file_data: Raw bytes of the PDF file
+            filename: Original filename (used to extract extension)
+            content_type: MIME type of the file (should be application/pdf)
+
+        Returns:
+            Public URL of the uploaded PDF
+        """
+        if not self.enabled or not self.client:
+            raise Exception("Supabase Storage is not enabled")
+
+        try:
+            # Generate unique filename to avoid collisions
+            file_ext = filename.split('.')[-1].lower()
+            unique_filename = f"{uuid.uuid4()}.{file_ext}"
+
+            # Upload to Supabase Storage (papers bucket)
+            self.client.storage.from_(self.papers_bucket_name).upload(
+                path=unique_filename,
+                file=file_data,
+                file_options={"content-type": content_type}
+            )
+
+            # Get public URL
+            public_url = self.client.storage.from_(self.papers_bucket_name).get_public_url(unique_filename)
+
+            print(f"✅ PDF uploaded to Supabase Storage: {unique_filename}")
+            return public_url
+
+        except Exception as e:
+            print(f"❌ Error uploading PDF to Supabase Storage: {e}")
+            raise
+
+    async def delete_pdf(self, file_url: str) -> bool:
+        """
+        Delete PDF from Supabase Storage
+
+        Args:
+            file_url: Full public URL of the PDF
+
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        if not self.enabled or not self.client:
+            return False
+
+        try:
+            # Extract filename from URL
+            # URL format: https://xxx.supabase.co/storage/v1/object/public/bucket_name/filename.pdf
+            filename = file_url.split('/')[-1]
+
+            # Handle URL query parameters if present
+            if '?' in filename:
+                filename = filename.split('?')[0]
+
+            self.client.storage.from_(self.papers_bucket_name).remove([filename])
+            print(f"✅ PDF deleted from Supabase Storage: {filename}")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error deleting PDF from Supabase Storage: {e}")
             return False
 
 

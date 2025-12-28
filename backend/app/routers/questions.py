@@ -216,6 +216,126 @@ async def upload_question_paper(
             except Exception:
                 pass
 
+@router.post("/capture", response_model=QuestionResponse)
+async def capture_question_from_paper(
+    file: UploadFile = File(...),
+    subject: str = Form(...),
+    grade: str = Form(None),
+    category: str = Form(None),
+    note: str = Form(None),
+    source_paper_id: int = Form(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Capture a question from a PDF paper (simplified mock approach)
+    User uploads a screenshot/snippet of the question from the PDF
+    The question is added to their Review list with a link to the source paper
+    """
+    temp_file_path = None
+
+    try:
+        # Validate file type
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File must be an image"
+            )
+
+        # Read file data into memory
+        file_data = await file.read()
+
+        # Generate unique filename
+        file_ext = os.path.splitext(file.filename)[1]
+        unique_filename = f"snippet_{uuid.uuid4()}{file_ext}"
+
+        # Upload snippet image to Supabase Storage
+        try:
+            snippet_url = await supabase_storage.upload_image(
+                file_data=file_data,
+                filename=unique_filename,
+                content_type=file.content_type
+            )
+            print(f"✅ Snippet uploaded to Supabase Storage: {snippet_url}")
+        except Exception as e:
+            print(f"❌ Supabase Storage upload failed: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to upload snippet to storage"
+            )
+
+        # Save to temporary file for optional AI processing
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
+            temp_file.write(file_data)
+            temp_file_path = temp_file.name
+
+        # Use note as question text if provided, otherwise use placeholder
+        question_text = note if note else "Question captured from paper"
+
+        # Track total tokens used
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_tokens = 0
+
+        # Optionally generate explanation (skip if note is empty for faster capture)
+        explanation = None
+        if note:
+            try:
+                explanation, tokens_used = await azure_ai_service.explain_question(
+                    question_text,
+                    subject,
+                    grade or current_user.get('grade')
+                )
+                total_prompt_tokens += tokens_used.get("prompt_tokens", 0)
+                total_completion_tokens += tokens_used.get("completion_tokens", 0)
+                total_tokens += tokens_used.get("total_tokens", 0)
+            except Exception as e:
+                print(f"Warning: Failed to generate explanation: {e}")
+                explanation = None
+
+        # Create question record
+        question = await supabase_db.create_question(
+            user_id=current_user['id'],
+            subject=subject,
+            question_text=question_text,
+            grade=grade or current_user.get('grade'),
+            category=category,
+            image_url=snippet_url,
+            image_snippet_url=snippet_url,
+            explanation=explanation,
+            status="pending",
+            source_paper_id=source_paper_id
+        )
+
+        # Track token usage if any
+        if total_tokens > 0:
+            try:
+                await supabase_db.add_token_usage(
+                    user_id=current_user['id'],
+                    prompt_tokens=total_prompt_tokens,
+                    completion_tokens=total_completion_tokens,
+                    total_tokens=total_tokens
+                )
+            except Exception as e:
+                print(f"Warning: Failed to track token usage: {e}")
+
+        return QuestionResponse(**question)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error capturing question: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to capture question: {str(e)}"
+        )
+    finally:
+        # Clean up temporary file
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except Exception:
+                pass
+
 @router.get("/wrong", response_model=List[QuestionResponse])
 async def get_wrong_questions(
     subject: Optional[str] = None,

@@ -26,6 +26,7 @@ class UserResponse(UserBase):
     grade: Optional[str] = None
     profile_picture: Optional[str] = None
     is_admin: Optional[bool] = False
+    credits: Optional[int] = 5
     created_at: datetime
 
     class Config:
@@ -49,6 +50,7 @@ class QuestionBase(BaseModel):
     question_text: str
     grade: Optional[str] = None
     category: Optional[str] = None
+    source_paper_id: Optional[int] = None
 
 class QuestionCreate(QuestionBase):
     image_url: Optional[str] = None
@@ -117,6 +119,52 @@ class UserListResponse(BaseModel):
     name: str
     grade: Optional[str] = None
     is_admin: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Paper Library Schemas
+class PaperBase(BaseModel):
+    title: str
+    subject: str
+    grade: Optional[str] = None
+    year: Optional[int] = None
+
+class PaperCreate(PaperBase):
+    pass
+
+class PaperResponse(PaperBase):
+    id: int
+    uploader_id: int
+    uploader_name: Optional[str] = None
+    file_url: str
+    file_size: Optional[int] = None
+    upload_date: datetime
+    download_count: int = 0
+    practice_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+class PaperListResponse(BaseModel):
+    papers: List[PaperResponse]
+    total: int
+
+# Credit Transaction Schemas
+class CreditTransactionCreate(BaseModel):
+    amount: int
+    transaction_type: str
+    description: Optional[str] = None
+    paper_id: Optional[int] = None
+
+class CreditTransactionResponse(BaseModel):
+    id: int
+    user_id: int
+    amount: int
+    transaction_type: str
+    description: Optional[str] = None
+    paper_id: Optional[int] = None
     created_at: datetime
 
     class Config:

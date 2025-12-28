@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { uploadImage } from '../services/api';
 
 const SUBJECTS = [
@@ -20,12 +19,12 @@ const CATEGORY_OPTIONS = {
 };
 
 const Upload = ({ user }) => {
-  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [subject, setSubject] = useState('');
   const [category, setCategory] = useState('');
   const [customCategory, setCustomCategory] = useState('');
+  // eslint-disable-next-line no-unused-vars
   const [grade, setGrade] = useState(user?.grade || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

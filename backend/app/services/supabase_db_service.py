@@ -229,7 +229,8 @@ class SupabaseDBService:
         explanation: Optional[str] = None,
         status: str = "pending",
         vector_id: Optional[str] = None,
-        question_metadata: Optional[Dict] = None
+        question_metadata: Optional[Dict] = None,
+        source_paper_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Create a new question"""
         data = {
@@ -244,6 +245,7 @@ class SupabaseDBService:
             "status": status,
             "vector_id": vector_id,
             "question_metadata": question_metadata or {},
+            "source_paper_id": source_paper_id,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
@@ -449,6 +451,261 @@ class SupabaseDBService:
             subjects[subject][q['status']] += 1
 
         return list(subjects.values())
+
+    # ==================== PAPER OPERATIONS ====================
+
+    async def create_paper(
+        self,
+        uploader_id: int,
+        title: str,
+        subject: str,
+        file_url: str,
+        grade: Optional[str] = None,
+        year: Optional[int] = None,
+        file_size: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Create a new paper record"""
+        data = {
+            "uploader_id": uploader_id,
+            "title": title,
+            "subject": subject,
+            "grade": grade,
+            "year": year,
+            "file_url": file_url,
+            "file_size": file_size,
+            "upload_date": datetime.utcnow().isoformat(),
+            "download_count": 0,
+            "practice_count": 0,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+
+        result = self.client.table("study_papers").insert(data).execute()
+        return result.data[0] if result.data else None
+
+    async def get_paper_by_id(self, paper_id: int) -> Optional[Dict[str, Any]]:
+        """Get paper by ID with uploader name"""
+        result = self.client.table("study_papers")\
+            .select("*, study_users!inner(name)")\
+            .eq("id", paper_id)\
+            .execute()
+
+        if result.data:
+            paper = result.data[0]
+            # Extract uploader name from joined data
+            paper['uploader_name'] = paper.get('study_users', {}).get('name')
+            return paper
+        return None
+
+    async def get_all_papers(
+        self,
+        subject: Optional[str] = None,
+        grade: Optional[str] = None,
+        uploader_id: Optional[int] = None,
+        limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Get all papers with optional filters"""
+        query = self.client.table("study_papers")\
+            .select("*, study_users!inner(name)")\
+            .order("upload_date", desc=True)
+
+        if subject:
+            query = query.eq("subject", subject)
+
+        if grade:
+            query = query.eq("grade", grade)
+
+        if uploader_id:
+            query = query.eq("uploader_id", uploader_id)
+
+        if limit:
+            query = query.limit(limit)
+
+        result = query.execute()
+
+        if result.data:
+            # Extract uploader names from joined data
+            for paper in result.data:
+                paper['uploader_name'] = paper.get('study_users', {}).get('name')
+            return result.data
+        return []
+
+    async def update_paper_download_count(self, paper_id: int) -> Dict[str, Any]:
+        """Increment download count for a paper"""
+        paper = await self.get_paper_by_id(paper_id)
+        if not paper:
+            raise ValueError(f"Paper {paper_id} not found")
+
+        new_count = (paper.get('download_count', 0) or 0) + 1
+
+        result = self.client.table("study_papers")\
+            .update({"download_count": new_count, "updated_at": datetime.utcnow().isoformat()})\
+            .eq("id", paper_id)\
+            .execute()
+
+        return result.data[0] if result.data else None
+
+    async def update_paper_practice_count(self, paper_id: int) -> Dict[str, Any]:
+        """Increment practice count for a paper"""
+        paper = await self.get_paper_by_id(paper_id)
+        if not paper:
+            raise ValueError(f"Paper {paper_id} not found")
+
+        new_count = (paper.get('practice_count', 0) or 0) + 1
+
+        result = self.client.table("study_papers")\
+            .update({"practice_count": new_count, "updated_at": datetime.utcnow().isoformat()})\
+            .eq("id", paper_id)\
+            .execute()
+
+        return result.data[0] if result.data else None
+
+    async def delete_paper(self, paper_id: int) -> bool:
+        """Delete paper (also deletes related credit transactions via CASCADE)"""
+        result = self.client.table("study_papers")\
+            .delete()\
+            .eq("id", paper_id)\
+            .execute()
+
+        return len(result.data) > 0
+
+    # ==================== CREDIT OPERATIONS ====================
+
+    async def get_user_credits(self, user_id: int) -> int:
+        """Get user's current credit balance"""
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return 0
+        return user.get('credits', 5) or 5
+
+    async def add_credits(
+        self,
+        user_id: int,
+        amount: int,
+        transaction_type: str,
+        description: Optional[str] = None,
+        paper_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Add credits to user and log transaction
+
+        Args:
+            user_id: User ID
+            amount: Number of credits to add (positive integer)
+            transaction_type: Type of transaction (e.g., 'upload', 'admin_adjust')
+            description: Optional description
+            paper_id: Optional paper ID if related to a paper
+
+        Returns:
+            Updated user data
+        """
+        if amount <= 0:
+            raise ValueError("Amount must be positive")
+
+        # Get current credits
+        current_credits = await self.get_user_credits(user_id)
+
+        # Update user credits
+        new_credits = current_credits + amount
+        user = await self.update_user(user_id, credits=new_credits)
+
+        # Log transaction
+        await self.create_credit_transaction(
+            user_id=user_id,
+            amount=amount,
+            transaction_type=transaction_type,
+            description=description,
+            paper_id=paper_id
+        )
+
+        return user
+
+    async def deduct_credits(
+        self,
+        user_id: int,
+        amount: int,
+        transaction_type: str,
+        description: Optional[str] = None,
+        paper_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Deduct credits from user and log transaction
+
+        Args:
+            user_id: User ID
+            amount: Number of credits to deduct (positive integer)
+            transaction_type: Type of transaction (e.g., 'download', 'practice')
+            description: Optional description
+            paper_id: Optional paper ID if related to a paper
+
+        Returns:
+            Updated user data
+
+        Raises:
+            ValueError: If user has insufficient credits
+        """
+        if amount <= 0:
+            raise ValueError("Amount must be positive")
+
+        # Get current credits
+        current_credits = await self.get_user_credits(user_id)
+
+        # Check if user has enough credits
+        if current_credits < amount:
+            raise ValueError(f"Insufficient credits. Required: {amount}, Available: {current_credits}")
+
+        # Update user credits
+        new_credits = current_credits - amount
+        user = await self.update_user(user_id, credits=new_credits)
+
+        # Log transaction (negative amount to indicate deduction)
+        await self.create_credit_transaction(
+            user_id=user_id,
+            amount=-amount,
+            transaction_type=transaction_type,
+            description=description,
+            paper_id=paper_id
+        )
+
+        return user
+
+    async def create_credit_transaction(
+        self,
+        user_id: int,
+        amount: int,
+        transaction_type: str,
+        description: Optional[str] = None,
+        paper_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Create a credit transaction record"""
+        data = {
+            "user_id": user_id,
+            "amount": amount,
+            "transaction_type": transaction_type,
+            "description": description,
+            "paper_id": paper_id,
+            "created_at": datetime.utcnow().isoformat()
+        }
+
+        result = self.client.table("study_credit_transactions").insert(data).execute()
+        return result.data[0] if result.data else None
+
+    async def get_credit_transactions(
+        self,
+        user_id: int,
+        limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Get credit transaction history for a user"""
+        query = self.client.table("study_credit_transactions")\
+            .select("*")\
+            .eq("user_id", user_id)\
+            .order("created_at", desc=True)
+
+        if limit:
+            query = query.limit(limit)
+
+        result = query.execute()
+        return result.data if result.data else []
 
 # Create singleton instance
 supabase_db = SupabaseDBService()

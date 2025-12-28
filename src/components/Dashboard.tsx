@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Upload as UploadIcon,
   BookOpen,
@@ -14,7 +13,9 @@ import {
   LogOut,
   GraduationCap,
   ChevronDown,
-  Users
+  Users,
+  Library,
+  Coins
 } from 'lucide-react';
 import Upload from './Upload';
 import Review from './Review';
@@ -22,6 +23,7 @@ import Progress from './Progress';
 import Settings from './Settings';
 import Usage from './Usage';
 import User from './User';
+import PaperLibrary from './PaperLibrary';
 import { updateUserGrade } from '../services/api';
 
 interface DashboardProps {
@@ -49,7 +51,6 @@ const GRADE_OPTIONS = [
 ];
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
-  const navigate = useNavigate();
   // Initialize activeTab from localStorage if available (for grade change persistence)
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = localStorage.getItem('activeTab');
@@ -151,6 +152,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const menuItems = [
     { id: 'upload', label: 'Upload', icon: UploadIcon },
     { id: 'review', label: 'Review', icon: BookOpen },
+    { id: 'library', label: 'Paper Library', icon: Library },
     { id: 'progress', label: 'Progress', icon: BarChart3 },
     ...(isAdmin ? [{ id: 'usage', label: 'Usage', icon: Activity }] : []),
     ...(isAdmin ? [{ id: 'users', label: 'Users', icon: Users }] : []),
@@ -281,12 +283,35 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             })}
           </div>
 
+          {/* Credits Display */}
+          <div className="absolute bottom-20 left-0 right-0 border-t border-gray-200 dark:border-gray-800 pt-4 px-2">
+            {sidebarOpen ? (
+              <div className="bg-gradient-to-r from-orange-50 to-blue-50 dark:from-orange-900/20 dark:to-blue-900/20 rounded-lg p-3 border border-orange-200 dark:border-orange-800">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Coins className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">My Credits</span>
+                  </div>
+                  <span className="text-lg font-bold text-orange-600 dark:text-orange-400">
+                    {user?.credits || 5}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <div className="bg-gradient-to-r from-orange-500 to-blue-500 rounded-full p-2">
+                  <Coins className="h-4 w-4 text-white" />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Account Actions */}
           {sidebarOpen && (
-            <div className="border-t border-gray-200 dark:border-gray-800 pt-4 space-y-1">
+            <div className="absolute bottom-14 left-0 right-0 border-t border-gray-200 dark:border-gray-800 pt-2 px-2">
               <button
                 onClick={onLogout}
-                className="relative flex h-11 w-full items-center rounded-md transition-all duration-200 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400"
+                className="relative flex h-9 w-full items-center rounded-md transition-all duration-200 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400"
               >
                 <div className="grid h-full w-12 place-content-center">
                   <LogOut className="h-4 w-4" />
@@ -334,6 +359,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   {activeTab === 'upload' && 'Upload and extract questions from your exam papers'}
                   {activeTab === 'review' && 'Review your wrongly answered questions'}
+                  {activeTab === 'library' && 'Browse and share exam papers with the community'}
                   {activeTab === 'progress' && 'Track your learning progress and achievements'}
                   {activeTab === 'usage' && 'Monitor your AI token consumption and costs'}
                   {activeTab === 'users' && 'Manage user accounts and permissions'}
@@ -392,6 +418,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           <div className="p-6">
             {activeTab === 'upload' && <Upload user={user} />}
             {activeTab === 'review' && <Review user={user} />}
+            {activeTab === 'library' && <PaperLibrary user={user} />}
             {activeTab === 'progress' && <Progress user={user} />}
             {activeTab === 'usage' && isAdmin && <Usage user={user} />}
             {activeTab === 'users' && isAdmin && <User user={user} />}
