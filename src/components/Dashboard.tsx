@@ -284,31 +284,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           </div>
 
           {/* Credits Display */}
-          <div className="absolute bottom-20 left-0 right-0 border-t border-gray-200 dark:border-gray-800 pt-4 px-2">
-            {sidebarOpen ? (
-              <div className="bg-gradient-to-r from-orange-50 to-blue-50 dark:from-orange-900/20 dark:to-blue-900/20 rounded-lg p-3 border border-orange-200 dark:border-orange-800">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Coins className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">My Credits</span>
-                  </div>
+          <div className="absolute bottom-[120px] left-0 right-0 border-t border-gray-200 dark:border-gray-800 pt-2 px-2">
+            <div className="relative flex h-11 w-full items-center rounded-md bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-800/30">
+              <div className="grid h-full w-12 place-content-center">
+                <Coins className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              </div>
+              {sidebarOpen && (
+                <div className="flex items-center justify-between flex-1 pr-3">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Credits
+                  </span>
                   <span className="text-lg font-bold text-orange-600 dark:text-orange-400">
-                    {user?.credits || 5}
+                    {user?.credits !== undefined ? user.credits : 5}
                   </span>
                 </div>
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <div className="bg-gradient-to-r from-orange-500 to-blue-500 rounded-full p-2">
-                  <Coins className="h-4 w-4 text-white" />
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* Account Actions */}
-          {sidebarOpen && (
-            <div className="absolute bottom-14 left-0 right-0 border-t border-gray-200 dark:border-gray-800 pt-2 px-2">
+          {/* Logout Button */}
+          <div className="absolute bottom-[60px] left-0 right-0 border-t border-gray-200 dark:border-gray-800 pt-2 px-2">
+            {sidebarOpen ? (
               <button
                 onClick={onLogout}
                 className="relative flex h-9 w-full items-center rounded-md transition-all duration-200 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400"
@@ -318,8 +314,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 </div>
                 <span className="text-sm font-medium">Logout</span>
               </button>
-            </div>
-          )}
+            ) : (
+              <button
+                onClick={onLogout}
+                className="flex justify-center w-full p-2 rounded-md transition-all duration-200 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            )}
+          </div>
 
           {/* Toggle Button */}
           <button

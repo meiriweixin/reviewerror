@@ -1,7 +1,7 @@
 """
 Supabase Storage Service
 Handles file uploads to Supabase Storage for persistent image storage
-Uses anon key with public bucket policies for uploads
+Uses service role key to bypass RLS for storage operations
 """
 
 from supabase import create_client, Client
@@ -20,15 +20,16 @@ class SupabaseStorageService:
         self.enabled = False
 
         try:
-            if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+            # Use service role key to bypass RLS for storage operations
+            if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
                 self.client = create_client(
                     settings.SUPABASE_URL,
-                    settings.SUPABASE_KEY
+                    settings.SUPABASE_SERVICE_ROLE_KEY
                 )
                 self.enabled = True
-                print("✅ Supabase Storage Service initialized")
+                print("✅ Supabase Storage Service initialized (service role key)")
             else:
-                print("❌ Supabase Storage disabled - missing URL or key")
+                print("❌ Supabase Storage disabled - missing URL or service role key")
         except Exception as e:
             print(f"❌ Failed to initialize Supabase Storage: {e}")
 
