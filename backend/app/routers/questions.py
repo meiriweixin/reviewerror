@@ -26,6 +26,7 @@ async def upload_question_paper(
     file: UploadFile = File(...),
     subject: str = Form(...),
     grade: str = Form(None),
+    category: str = Form(None),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
@@ -134,6 +135,7 @@ async def upload_question_paper(
                     user_id=current_user['id'],
                     subject=subject,
                     grade=grade or current_user.get('grade'),
+                    category=category,
                     question_text=question_text,
                     image_url=image_url,  # Now using Supabase Storage URL
                     explanation=explanation,

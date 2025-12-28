@@ -8,11 +8,23 @@ const SUBJECTS = [
   'Computer Science', 'Art', 'Music', 'Physical Education', 'Other'
 ];
 
+// Category options based on selected subject (same as Review.js)
+const CATEGORY_OPTIONS = {
+  Mathematics: ['Algebra', 'Geometry', 'Arithmetic', 'Calculus', 'Statistics', 'Trigonometry'],
+  Physics: ['Mechanics', 'Electricity', 'Magnetism', 'Thermodynamics', 'Optics', 'Modern Physics'],
+  Chemistry: ['Organic Chemistry', 'Inorganic Chemistry', 'Physical Chemistry', 'Analytical Chemistry'],
+  Biology: ['Cell Biology', 'Genetics', 'Evolution', 'Ecology', 'Human Biology', 'Botany'],
+  English: ['Grammar', 'Comprehension', 'Composition', 'Literature', 'Vocabulary'],
+  Chinese: ['Reading', 'Writing', 'Grammar', 'Comprehension', 'Composition'],
+  Other: []
+};
+
 const Upload = ({ user }) => {
   const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [subject, setSubject] = useState('');
+  const [category, setCategory] = useState('');
   const [grade, setGrade] = useState(user?.grade || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -44,6 +56,12 @@ const Upload = ({ user }) => {
     }
   };
 
+  // Handle subject change - reset category when subject changes
+  const handleSubjectChange = (newSubject) => {
+    setSubject(newSubject);
+    setCategory(''); // Reset category when subject changes
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -64,7 +82,7 @@ const Upload = ({ user }) => {
 
     try {
       setUploadProgress({ status: 'Analyzing image with AI...', percent: 60 });
-      const result = await uploadImage(selectedFile, subject, grade);
+      const result = await uploadImage(selectedFile, subject, grade, category);
 
       setUploadProgress({ status: 'Extracting wrong questions...', percent: 90 });
 
@@ -74,6 +92,7 @@ const Upload = ({ user }) => {
         setSelectedFile(null);
         setPreview(null);
         setSubject('');
+        setCategory('');
         setLoading(false);
       }, 500);
 
@@ -133,7 +152,7 @@ const Upload = ({ user }) => {
           </label>
           <select
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
+            onChange={(e) => handleSubjectChange(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
             required
           >
@@ -142,6 +161,31 @@ const Upload = ({ user }) => {
               <option key={sub} value={sub} className="text-gray-900">{sub}</option>
             ))}
           </select>
+        </div>
+
+        {/* Category Selection */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Category <span className="text-gray-400 font-normal">(Optional)</span>
+          </label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            disabled={!subject || !CATEGORY_OPTIONS[subject] || CATEGORY_OPTIONS[subject].length === 0}
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="" className="text-gray-900">
+              {!subject ? 'Select a subject first' : 'Select a category (optional)'}
+            </option>
+            {subject && CATEGORY_OPTIONS[subject]?.map((cat) => (
+              <option key={cat} value={cat} className="text-gray-900">{cat}</option>
+            ))}
+          </select>
+          {subject && CATEGORY_OPTIONS[subject] && CATEGORY_OPTIONS[subject].length > 0 && (
+            <p className="text-xs text-gray-500 mt-2">
+              Help organize questions by topic for easier filtering and review
+            </p>
+          )}
         </div>
 
         {/* File Upload */}
