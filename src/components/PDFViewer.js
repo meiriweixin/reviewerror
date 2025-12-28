@@ -61,6 +61,7 @@ const PDFViewer = ({ paper, fileUrl, onClose, user }) => {
     category: '',
     note: '',
   });
+  const [customCategory, setCustomCategory] = useState('');
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -131,15 +132,24 @@ const PDFViewer = ({ paper, fileUrl, onClose, user }) => {
       return;
     }
 
+    // Validate custom category if "custom" is selected
+    if (captureForm.category === 'custom' && !customCategory.trim()) {
+      setMessage({ type: 'error', text: 'Please enter a custom category' });
+      return;
+    }
+
     setLoading(true);
     setMessage({ type: '', text: '' });
 
     try {
+      // Use custom category if "custom" is selected, otherwise use selected category
+      const finalCategory = captureForm.category === 'custom' ? customCategory.trim() : captureForm.category;
+
       await captureQuestion(
         captureForm.file,
         captureForm.subject,
         captureForm.grade,
-        captureForm.category,
+        finalCategory,
         captureForm.note,
         paper.id
       );
@@ -157,6 +167,7 @@ const PDFViewer = ({ paper, fileUrl, onClose, user }) => {
         category: '',
         note: '',
       });
+      setCustomCategory('');
       setPreviewUrl(null);
 
       // Close modal after 2 seconds
@@ -271,6 +282,7 @@ const PDFViewer = ({ paper, fileUrl, onClose, user }) => {
                   setShowCaptureModal(false);
                   setMessage({ type: '', text: '' });
                   setPreviewUrl(null);
+                  setCustomCategory('');
                 }}
                 className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
@@ -363,7 +375,12 @@ const PDFViewer = ({ paper, fileUrl, onClose, user }) => {
                   </label>
                   <select
                     value={captureForm.category}
-                    onChange={(e) => setCaptureForm(prev => ({ ...prev, category: e.target.value }))}
+                    onChange={(e) => {
+                      setCaptureForm(prev => ({ ...prev, category: e.target.value }));
+                      if (e.target.value !== 'custom') {
+                        setCustomCategory(''); // Clear custom input when switching away from custom
+                      }
+                    }}
                     className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Select category (optional)</option>
@@ -372,7 +389,27 @@ const PDFViewer = ({ paper, fileUrl, onClose, user }) => {
                         {category}
                       </option>
                     ))}
+                    {getRelevantCategories().length > 0 && (
+                      <option value="custom">✏️ Custom...</option>
+                    )}
                   </select>
+
+                  {/* Custom Category Input - shows when "Custom..." is selected */}
+                  {captureForm.category === 'custom' && (
+                    <div className="mt-3">
+                      <input
+                        type="text"
+                        value={customCategory}
+                        onChange={(e) => setCustomCategory(e.target.value)}
+                        placeholder="Enter your custom category (e.g., Linear Equations, Quadratic Functions)"
+                        className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        maxLength={50}
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        Create your own category for better organization
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -411,6 +448,7 @@ const PDFViewer = ({ paper, fileUrl, onClose, user }) => {
                   setShowCaptureModal(false);
                   setMessage({ type: '', text: '' });
                   setPreviewUrl(null);
+                  setCustomCategory('');
                 }}
                 className="px-6 py-2 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 disabled={loading}
