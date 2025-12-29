@@ -45,7 +45,7 @@ export const updateUserGrade = async (grade) => {
 };
 
 // Question APIs
-export const uploadImage = async (file, subject, grade, category = '') => {
+export const uploadImage = async (file, subject, grade, category = '', wrongOnly = true) => {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('subject', subject);
@@ -53,6 +53,7 @@ export const uploadImage = async (file, subject, grade, category = '') => {
   if (category) {
     formData.append('category', category);
   }
+  formData.append('wrong_only', wrongOnly.toString());
 
   const response = await api.post('/questions/upload', formData, {
     headers: {

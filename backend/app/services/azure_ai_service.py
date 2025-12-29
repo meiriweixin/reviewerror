@@ -21,14 +21,21 @@ class AzureAIService:
     async def analyze_question_paper(
         self,
         image_path: str,
-        subject: str
+        subject: str,
+        wrong_only: bool = True
     ) -> Dict[str, Any]:
         """
-        Analyze question paper image to extract wrongly answered questions
+        Analyze question paper image to extract questions
+
+        Args:
+            image_path: Path to the image file
+            subject: The subject of the exam
+            wrong_only: If True, extract only wrongly answered questions (default).
+                       If False, extract ALL questions from the image.
 
         Returns:
             Dict containing:
-            - wrong_questions: List of wrongly answered questions
+            - wrong_questions: List of extracted questions
             - total_questions: Total number of questions detected
             - analysis: Additional analysis from AI
             - tokens_used: Token usage info (prompt_tokens, completion_tokens, total_tokens)
@@ -37,8 +44,9 @@ class AzureAIService:
             # Encode image
             base64_image = self.encode_image(image_path)
 
-            # Create prompt for GPT-4o Vision
-            prompt = f"""You are an expert educational AI assistant analyzing exam papers and worksheets.
+            # Create prompt for GPT-4o Vision based on extraction mode
+            if wrong_only:
+                prompt = f"""You are an expert educational AI assistant analyzing exam papers and worksheets.
 
 TASK: Analyze this {subject} exam paper/worksheet image and identify ALL wrongly answered questions.
 
@@ -70,6 +78,42 @@ IMPORTANT:
 - Extract the COMPLETE question text, not just a summary
 - If question text is partially visible or unclear, include what you can see and note it in explanation
 - Only include questions that are clearly marked as WRONG
+- Be thorough and check the entire image
+
+Return ONLY valid JSON, no additional text."""
+            else:
+                # Extract ALL questions regardless of marks
+                prompt = f"""You are an expert educational AI assistant analyzing exam papers and worksheets.
+
+TASK: Analyze this {subject} exam paper/worksheet image and extract ALL questions visible.
+
+INSTRUCTIONS:
+1. Extract EVERY question visible in the image, regardless of any marks (correct, incorrect, or no marks)
+2. For each question found, extract:
+   - The complete question text
+   - Question number (if visible)
+   - Any visible context or sub-parts
+   - A brief explanation of what concept/topic it covers
+
+3. Return your analysis as a JSON object with this EXACT structure:
+{{
+    "wrong_questions": [
+        {{
+            "question_number": "1a" or null if not visible,
+            "question_text": "Complete question text here",
+            "topic": "Brief topic/concept covered",
+            "explanation": "Brief explanation of what this question tests"
+        }}
+    ],
+    "total_questions_detected": <number>,
+    "total_wrong_questions": <number>,
+    "analysis_notes": "Any additional observations"
+}}
+
+IMPORTANT:
+- Extract the COMPLETE question text, not just a summary
+- Include ALL questions, whether marked correct, incorrect, or unmarked
+- If question text is partially visible or unclear, include what you can see and note it in explanation
 - Be thorough and check the entire image
 
 Return ONLY valid JSON, no additional text."""

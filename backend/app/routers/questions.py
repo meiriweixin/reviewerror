@@ -27,13 +27,18 @@ async def upload_question_paper(
     subject: str = Form(...),
     grade: str = Form(None),
     category: str = Form(None),
+    wrong_only: str = Form("true"),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Upload and analyze question paper image
-    Extracts wrongly answered questions using Azure GPT-4o Vision
+    Extracts questions using Azure GPT-4o Vision
+    - wrong_only=true (default): Extract only wrongly answered questions (marked with ✗)
+    - wrong_only=false: Extract ALL questions from the image
     Images are stored in Supabase Storage for persistence
     """
+    # Convert string to boolean
+    extract_wrong_only = wrong_only.lower() == "true"
     temp_file_path = None
     
     try:
@@ -91,7 +96,8 @@ async def upload_question_paper(
             # Analyze image with Azure GPT-4o Vision (using temp file)
             analysis_result = await azure_ai_service.analyze_question_paper(
                 temp_file_path,
-                subject
+                subject,
+                wrong_only=extract_wrong_only
             )
 
             # Track tokens from image analysis

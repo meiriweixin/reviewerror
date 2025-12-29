@@ -30,6 +30,7 @@ const Upload = ({ user }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [uploadProgress, setUploadProgress] = useState(null);
+  const [wrongOnly, setWrongOnly] = useState(true); // Default: extract only wrong questions
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -93,12 +94,12 @@ const Upload = ({ user }) => {
       // Use custom category if "custom" is selected, otherwise use selected category
       const finalCategory = category === 'custom' ? customCategory.trim() : category;
 
-      const result = await uploadImage(selectedFile, subject, grade, finalCategory);
+      const result = await uploadImage(selectedFile, subject, grade, finalCategory, wrongOnly);
 
-      setUploadProgress({ status: 'Extracting wrong questions...', percent: 90 });
+      setUploadProgress({ status: wrongOnly ? 'Extracting wrong questions...' : 'Extracting all questions...', percent: 90 });
 
       setTimeout(() => {
-        setSuccess(`Successfully extracted ${result.questions_count} wrong question(s)!`);
+        setSuccess(`Successfully extracted ${result.questions_count} question(s)!`);
         setUploadProgress(null);
         setSelectedFile(null);
         setPreview(null);
@@ -226,6 +227,38 @@ const Upload = ({ user }) => {
           )}
         </div>
 
+        {/* Extraction Mode Toggle */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                Wrong Questions Only
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {wrongOnly
+                  ? 'Extract only questions marked with ✗ (crosses/wrong marks)'
+                  : 'Extract ALL questions from the image regardless of marks'
+                }
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setWrongOnly(!wrongOnly)}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                wrongOnly ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+              role="switch"
+              aria-checked={wrongOnly}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  wrongOnly ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
         {/* File Upload */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6">
           <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -296,21 +329,21 @@ const Upload = ({ user }) => {
           disabled={loading || !selectedFile || !subject}
           className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
         >
-          {loading ? 'Processing...' : 'Analyze & Extract Wrong Questions'}
+          {loading ? 'Processing...' : wrongOnly ? 'Analyze & Extract Wrong Questions' : 'Analyze & Extract All Questions'}
         </button>
       </form>
 
       {/* Info Box */}
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-2xl p-6">
-        <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+      <div className="mt-8 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-2xl p-6">
+        <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2 flex items-center gap-2">
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
           </svg>
           Tips for best results
         </h3>
-        <ul className="text-sm text-blue-800 space-y-1 ml-7">
+        <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1 ml-7">
           <li>• Ensure the image is clear and well-lit</li>
-          <li>• Make sure check marks (✓) and crosses (✗) are visible</li>
+          {wrongOnly && <li>• Make sure check marks (✓) and crosses (✗) are visible</li>}
           <li>• Upload one page at a time for better accuracy</li>
           <li>• Supported formats: PNG, JPG, JPEG</li>
         </ul>
