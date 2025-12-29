@@ -220,8 +220,35 @@ export const captureQuestion = async (file, subject, grade, category, note, sour
 
 // ============= Community Q&A APIs =============
 
-export const createQAQuestion = async (questionData) => {
-  const response = await api.post('/qa/questions', questionData);
+export const createQAQuestion = async (questionData, imageFiles = []) => {
+  const formData = new FormData();
+
+  // Add required fields
+  formData.append('title', questionData.title);
+  formData.append('content', questionData.content);
+  formData.append('subject', questionData.subject);
+
+  // Add optional fields
+  if (questionData.grade) {
+    formData.append('grade', questionData.grade);
+  }
+  if (questionData.bounty_amount !== undefined) {
+    formData.append('bounty_amount', questionData.bounty_amount.toString());
+  }
+  if (questionData.tags && questionData.tags.length > 0) {
+    formData.append('tags', JSON.stringify(questionData.tags));
+  }
+
+  // Add image files
+  imageFiles.forEach((file) => {
+    formData.append('files', file);
+  });
+
+  const response = await api.post('/qa/questions', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
 

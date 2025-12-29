@@ -751,7 +751,9 @@ class SupabaseDBService:
         content: str,
         subject: str,
         grade: Optional[str] = None,
-        bounty_amount: int = 0
+        bounty_amount: int = 0,
+        tags: Optional[List[str]] = None,
+        images: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """Create new Q&A question"""
         data = {
@@ -767,6 +769,8 @@ class SupabaseDBService:
             "downvotes": 0,
             "answer_count": 0,
             "view_count": 0,
+            "tags": tags,
+            "images": images,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }

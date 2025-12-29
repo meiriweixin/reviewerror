@@ -3,7 +3,9 @@ Community Q&A Router
 Stack Overflow-style Q&A platform with bounty system
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import os
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from typing import Dict, Any, List, Optional
 from app.routers.auth import get_current_user
 from app.services.supabase_db_service import supabase_db
@@ -16,37 +18,84 @@ from app.schemas import (
 
 router = APIRouter(prefix="/qa", tags=["Community Q&A"])
 
+# Create uploads directory for Q&A images
+QA_UPLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads", "qa")
+os.makedirs(QA_UPLOADS_DIR, exist_ok=True)
+
 
 # ============= QUESTIONS =============
 
+async def save_qa_image(file: UploadFile) -> str:
+    """Save uploaded image and return the URL path"""
+    # Generate unique filename
+    ext = os.path.splitext(file.filename)[1] if file.filename else ".jpg"
+    filename = f"{uuid.uuid4()}{ext}"
+    filepath = os.path.join(QA_UPLOADS_DIR, filename)
+
+    # Save file
+    contents = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    return f"/uploads/qa/{filename}"
+
+
 @router.post("/questions", response_model=QAQuestionResponse)
 async def create_question(
-    question: QAQuestionCreate,
+    title: str = Form(...),
+    content: str = Form(...),
+    subject: str = Form(...),
+    grade: Optional[str] = Form(None),
+    bounty_amount: int = Form(0),
+    tags: Optional[str] = Form(None),  # JSON string of tags array
+    files: List[UploadFile] = File(default=[]),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Create new Q&A question with optional bounty"""
+    """Create new Q&A question with optional bounty and images"""
+    import json
+
     user_id = current_user['id']
 
     # If bounty specified, deduct credits first
-    if question.bounty_amount and question.bounty_amount > 0:
+    if bounty_amount and bounty_amount > 0:
         try:
             await supabase_db.deduct_credits(
                 user_id=user_id,
-                amount=question.bounty_amount,
+                amount=bounty_amount,
                 transaction_type="qa_bounty",
-                description=f"Bounty for question: {question.title[:50]}"
+                description=f"Bounty for question: {title[:50]}"
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
+    # Parse tags from JSON string
+    parsed_tags = None
+    if tags:
+        try:
+            parsed_tags = json.loads(tags)
+        except json.JSONDecodeError:
+            pass
+
+    # Save uploaded images
+    image_urls = []
+    for file in files:
+        if file.filename:  # Skip empty file uploads
+            try:
+                url = await save_qa_image(file)
+                image_urls.append(url)
+            except Exception as e:
+                print(f"Error saving image: {e}")
+
     # Create question
     new_question = await supabase_db.create_qa_question(
         user_id=user_id,
-        title=question.title,
-        content=question.content,
-        subject=question.subject,
-        grade=question.grade,
-        bounty_amount=question.bounty_amount
+        title=title,
+        content=content,
+        subject=subject,
+        grade=grade,
+        bounty_amount=bounty_amount,
+        tags=parsed_tags,
+        images=image_urls if image_urls else None
     )
 
     if not new_question:

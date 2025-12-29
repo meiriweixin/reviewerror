@@ -179,6 +179,8 @@ class QAQuestionCreate(BaseModel):
     subject: str
     grade: Optional[str] = None
     bounty_amount: int = 0
+    tags: Optional[List[str]] = None
+    images: Optional[List[str]] = None  # List of image URLs
 
 
 class QAQuestionResponse(BaseModel):
@@ -194,6 +196,8 @@ class QAQuestionResponse(BaseModel):
     status: str
     upvotes: int
     downvotes: int
+    tags: Optional[List[str]] = None
+    images: Optional[List[str]] = None
     answer_count: int
     view_count: int
     created_at: datetime

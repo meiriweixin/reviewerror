@@ -189,7 +189,9 @@ const AskQuestionModal = ({ user, onClose, onQuestionCreated }) => {
     setError('');
 
     try {
-      // TODO: Handle image upload to backend (currently just submitting question)
+      // Extract file objects from images state
+      const imageFiles = images.map(img => img.file);
+
       await createQAQuestion({
         title: title.trim(),
         content: content.trim(),
@@ -197,7 +199,7 @@ const AskQuestionModal = ({ user, onClose, onQuestionCreated }) => {
         grade: grade || user?.grade,
         bounty_amount: bountyAmount,
         tags: tags.length > 0 ? tags : undefined
-      });
+      }, imageFiles);
       onQuestionCreated();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create question');

@@ -319,6 +319,15 @@ const QuestionDetailModal = ({ questionId, currentUser, onClose, onUpdate }) => 
                 }`}>
                   {question.status === 'solved' ? 'Solved' : 'Open'}
                 </span>
+                {/* Tags */}
+                {question.tags && question.tags.length > 0 && question.tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md text-xs"
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
             </div>
             <button
@@ -348,6 +357,32 @@ const QuestionDetailModal = ({ questionId, currentUser, onClose, onUpdate }) => 
                 {question.content}
               </ReactMarkdown>
             </div>
+
+            {/* Attached Images */}
+            {question.images && question.images.length > 0 && (
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                  Attachments ({question.images.length})
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {question.images.map((imageUrl, index) => (
+                    <a
+                      key={index}
+                      href={`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}${imageUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <img
+                        src={`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}${imageUrl}`}
+                        alt={`Attachment ${index + 1}`}
+                        className="h-32 w-auto object-cover rounded-lg border border-gray-200 dark:border-gray-600 hover:opacity-90 transition-opacity cursor-pointer"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Question Meta and Actions */}
             <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
