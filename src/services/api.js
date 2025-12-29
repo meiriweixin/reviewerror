@@ -218,4 +218,93 @@ export const captureQuestion = async (file, subject, grade, category, note, sour
   return response.data;
 };
 
+// ============= Community Q&A APIs =============
+
+export const createQAQuestion = async (questionData) => {
+  const response = await api.post('/qa/questions', questionData);
+  return response.data;
+};
+
+export const getQAQuestions = async (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.filter) params.append('filter', filters.filter);
+  if (filters.subject) params.append('subject', filters.subject);
+  if (filters.grade) params.append('grade', filters.grade);
+  if (filters.limit) params.append('limit', filters.limit);
+  if (filters.offset) params.append('offset', filters.offset);
+
+  const response = await api.get(`/qa/questions?${params.toString()}`);
+  return response.data;
+};
+
+export const getQAQuestionById = async (questionId) => {
+  const response = await api.get(`/qa/questions/${questionId}`);
+  return response.data;
+};
+
+export const deleteQAQuestion = async (questionId) => {
+  const response = await api.delete(`/qa/questions/${questionId}`);
+  return response.data;
+};
+
+export const createQAAnswer = async (questionId, content) => {
+  const response = await api.post(`/qa/questions/${questionId}/answers`, { content });
+  return response.data;
+};
+
+export const getQAAnswers = async (questionId) => {
+  const response = await api.get(`/qa/questions/${questionId}/answers`);
+  return response.data;
+};
+
+export const acceptQAAnswer = async (answerId) => {
+  const response = await api.post(`/qa/answers/${answerId}/accept`);
+  return response.data;
+};
+
+export const deleteQAAnswer = async (answerId) => {
+  const response = await api.delete(`/qa/answers/${answerId}`);
+  return response.data;
+};
+
+export const castQAVote = async (entityType, entityId, voteType) => {
+  const response = await api.post('/qa/vote', {
+    entity_type: entityType,
+    entity_id: entityId,
+    vote_type: voteType
+  });
+  return response.data;
+};
+
+export const removeQAVote = async (entityType, entityId) => {
+  const params = new URLSearchParams();
+  params.append('entity_type', entityType);
+  params.append('entity_id', entityId);
+  const response = await api.delete(`/qa/vote?${params.toString()}`);
+  return response.data;
+};
+
+export const getUserQAVote = async (entityType, entityId) => {
+  const params = new URLSearchParams();
+  params.append('entity_type', entityType);
+  params.append('entity_id', entityId);
+  const response = await api.get(`/qa/vote?${params.toString()}`);
+  return response.data;
+};
+
+export const createQAComment = async (answerId, content) => {
+  const response = await api.post(`/qa/answers/${answerId}/comments`, { content });
+  return response.data;
+};
+
+export const getQAComments = async (answerId) => {
+  const response = await api.get(`/qa/answers/${answerId}/comments`);
+  return response.data;
+};
+
+export const deleteQAComment = async (commentId) => {
+  const response = await api.delete(`/qa/comments/${commentId}`);
+  return response.data;
+};
+
 export default api;

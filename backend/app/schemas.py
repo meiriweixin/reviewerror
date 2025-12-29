@@ -169,3 +169,79 @@ class CreditTransactionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ============= Community Q&A Schemas =============
+
+class QAQuestionCreate(BaseModel):
+    title: str
+    content: str
+    subject: str
+    grade: Optional[str] = None
+    bounty_amount: int = 0
+
+
+class QAQuestionResponse(BaseModel):
+    id: int
+    user_id: int
+    user_name: Optional[str] = None
+    title: str
+    content: str
+    subject: str
+    grade: Optional[str] = None
+    bounty_amount: int
+    bounty_active: bool
+    status: str
+    upvotes: int
+    downvotes: int
+    answer_count: int
+    view_count: int
+    created_at: datetime
+    updated_at: datetime
+    accepted_answer_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class QAAnswerCreate(BaseModel):
+    content: str
+
+
+class QAAnswerResponse(BaseModel):
+    id: int
+    question_id: int
+    user_id: int
+    user_name: Optional[str] = None
+    content: str
+    upvotes: int
+    downvotes: int
+    is_accepted: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class QAVoteCreate(BaseModel):
+    entity_type: str  # 'question' or 'answer'
+    entity_id: int
+    vote_type: str  # 'upvote' or 'downvote'
+
+
+class QACommentCreate(BaseModel):
+    content: str
+
+
+class QACommentResponse(BaseModel):
+    id: int
+    answer_id: int
+    user_id: int
+    user_name: Optional[str] = None
+    content: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 from dotenv import load_dotenv
 
-from app.routers import auth, questions, stats, usage, users, papers
+from app.routers import auth, questions, stats, usage, users, papers, qa
 
 load_dotenv()
 
@@ -41,6 +41,7 @@ app.include_router(stats.router, prefix="/stats", tags=["Statistics"])
 app.include_router(usage.router, prefix="/usage", tags=["Usage"])
 app.include_router(users.router, prefix="/users", tags=["User Management"])
 app.include_router(papers.router, prefix="/papers", tags=["Paper Library"])
+app.include_router(qa.router)
 
 @app.on_event("startup")
 async def startup_event():

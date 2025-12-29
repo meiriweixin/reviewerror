@@ -15,7 +15,8 @@ import {
   ChevronDown,
   Users,
   Library,
-  Coins
+  Coins,
+  MessageCircle
 } from 'lucide-react';
 import Upload from './Upload';
 import Review from './Review';
@@ -24,6 +25,7 @@ import Settings from './Settings';
 import Usage from './Usage';
 import User from './User';
 import PaperLibrary from './PaperLibrary';
+import CommunityQA from './CommunityQA';
 import { updateUserGrade } from '../services/api';
 
 interface DashboardProps {
@@ -152,6 +154,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const menuItems = [
     { id: 'upload', label: 'Upload', icon: UploadIcon },
     { id: 'review', label: 'Review', icon: BookOpen },
+    { id: 'community', label: 'Community Q&A', icon: MessageCircle },
     { id: 'library', label: 'Paper Library', icon: Library },
     { id: 'progress', label: 'Progress', icon: BarChart3 },
     ...(isAdmin ? [{ id: 'usage', label: 'Usage', icon: Activity }] : []),
@@ -362,6 +365,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   {activeTab === 'upload' && 'Upload and extract questions from your exam papers'}
                   {activeTab === 'review' && 'Review your wrongly answered questions'}
+                  {activeTab === 'community' && 'Ask questions and help your peers learn'}
                   {activeTab === 'library' && 'Browse and share exam papers with the community'}
                   {activeTab === 'progress' && 'Track your learning progress and achievements'}
                   {activeTab === 'usage' && 'Monitor your AI token consumption and costs'}
@@ -421,6 +425,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           <div className="p-6">
             {activeTab === 'upload' && <Upload user={user} />}
             {activeTab === 'review' && <Review user={user} />}
+            {activeTab === 'community' && <CommunityQA user={user} />}
             {activeTab === 'library' && <PaperLibrary user={user} />}
             {activeTab === 'progress' && <Progress user={user} />}
             {activeTab === 'usage' && isAdmin && <Usage user={user} />}

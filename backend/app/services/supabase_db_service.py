@@ -742,5 +742,454 @@ class SupabaseDBService:
         result = query.execute()
         return result.data if result.data else []
 
+    # ==================== COMMUNITY Q&A OPERATIONS ====================
+
+    async def create_qa_question(
+        self,
+        user_id: int,
+        title: str,
+        content: str,
+        subject: str,
+        grade: Optional[str] = None,
+        bounty_amount: int = 0
+    ) -> Dict[str, Any]:
+        """Create new Q&A question"""
+        data = {
+            "user_id": user_id,
+            "title": title,
+            "content": content,
+            "subject": subject,
+            "grade": grade,
+            "bounty_amount": bounty_amount,
+            "bounty_active": bounty_amount > 0,
+            "status": "open",
+            "upvotes": 0,
+            "downvotes": 0,
+            "answer_count": 0,
+            "view_count": 0,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+
+        result = self.client.table("study_qa_questions").insert(data).execute()
+
+        if result.data and bounty_amount > 0:
+            # Create bounty record
+            bounty_data = {
+                "question_id": result.data[0]['id'],
+                "user_id": user_id,
+                "amount": bounty_amount,
+                "status": "active",
+                "created_at": datetime.utcnow().isoformat()
+            }
+            self.client.table("study_qa_bounties").insert(bounty_data).execute()
+
+        return result.data[0] if result.data else None
+
+    async def get_qa_questions(
+        self,
+        filter_type: str = "latest",
+        subject: Optional[str] = None,
+        grade: Optional[str] = None,
+        user_id: Optional[int] = None,
+        limit: int = 20,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Get questions with filtering"""
+        query = self.client.table("study_qa_questions")\
+            .select("*, study_users!inner(name)")
+
+        if filter_type == "unanswered":
+            query = query.eq("answer_count", 0)
+        elif filter_type == "my_questions" and user_id:
+            query = query.eq("user_id", user_id)
+        elif filter_type == "bounties":
+            query = query.eq("bounty_active", True)
+
+        if subject:
+            query = query.eq("subject", subject)
+        if grade:
+            query = query.eq("grade", grade)
+
+        query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
+        result = query.execute()
+
+        if result.data:
+            for q in result.data:
+                q['user_name'] = q.get('study_users', {}).get('name')
+            return result.data
+        return []
+
+    async def get_qa_question_by_id(self, question_id: int) -> Optional[Dict[str, Any]]:
+        """Get question by ID with user name"""
+        result = self.client.table("study_qa_questions")\
+            .select("*, study_users!inner(name)")\
+            .eq("id", question_id)\
+            .execute()
+
+        if result.data:
+            q = result.data[0]
+            q['user_name'] = q.get('study_users', {}).get('name')
+            return q
+        return None
+
+    async def increment_question_views(self, question_id: int):
+        """Increment view count"""
+        result = self.client.table("study_qa_questions")\
+            .select("view_count")\
+            .eq("id", question_id)\
+            .execute()
+
+        if result.data:
+            current_views = result.data[0].get('view_count', 0) or 0
+            self.client.table("study_qa_questions")\
+                .update({"view_count": current_views + 1})\
+                .eq("id", question_id)\
+                .execute()
+
+    async def delete_qa_question(self, question_id: int) -> bool:
+        """Delete question (cascade deletes answers, votes, comments)"""
+        result = self.client.table("study_qa_questions")\
+            .delete()\
+            .eq("id", question_id)\
+            .execute()
+
+        return len(result.data) > 0
+
+    async def create_qa_answer(
+        self,
+        question_id: int,
+        user_id: int,
+        content: str
+    ) -> Dict[str, Any]:
+        """Create answer and increment question answer count"""
+        data = {
+            "question_id": question_id,
+            "user_id": user_id,
+            "content": content,
+            "upvotes": 0,
+            "downvotes": 0,
+            "is_accepted": False,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        result = self.client.table("study_qa_answers").insert(data).execute()
+
+        # Increment answer count on question
+        question = await self.get_qa_question_by_id(question_id)
+        if question:
+            new_count = (question.get('answer_count', 0) or 0) + 1
+            self.client.table("study_qa_questions")\
+                .update({"answer_count": new_count})\
+                .eq("id", question_id)\
+                .execute()
+
+        if result.data:
+            # Get user name for response
+            user = await self.get_user_by_id(user_id)
+            result.data[0]['user_name'] = user.get('name') if user else None
+            return result.data[0]
+        return None
+
+    async def get_qa_answers(self, question_id: int) -> List[Dict[str, Any]]:
+        """Get answers for question (accepted first, then by upvotes)"""
+        result = self.client.table("study_qa_answers")\
+            .select("*, study_users!inner(name)")\
+            .eq("question_id", question_id)\
+            .order("is_accepted", desc=True)\
+            .order("upvotes", desc=True)\
+            .execute()
+
+        if result.data:
+            for a in result.data:
+                a['user_name'] = a.get('study_users', {}).get('name')
+            return result.data
+        return []
+
+    async def get_qa_answer_by_id(self, answer_id: int) -> Optional[Dict[str, Any]]:
+        """Get answer by ID"""
+        result = self.client.table("study_qa_answers")\
+            .select("*, study_users!inner(name)")\
+            .eq("id", answer_id)\
+            .execute()
+
+        if result.data:
+            a = result.data[0]
+            a['user_name'] = a.get('study_users', {}).get('name')
+            return a
+        return None
+
+    async def accept_qa_answer(self, answer_id: int, question_id: int):
+        """Mark answer as accepted and update question"""
+        # Unaccept any previously accepted answer
+        self.client.table("study_qa_answers")\
+            .update({"is_accepted": False})\
+            .eq("question_id", question_id)\
+            .execute()
+
+        # Accept this answer
+        self.client.table("study_qa_answers")\
+            .update({"is_accepted": True, "updated_at": datetime.utcnow().isoformat()})\
+            .eq("id", answer_id)\
+            .execute()
+
+        # Update question status and reference
+        self.client.table("study_qa_questions")\
+            .update({
+                "status": "solved",
+                "accepted_answer_id": answer_id,
+                "bounty_active": False,
+                "updated_at": datetime.utcnow().isoformat()
+            })\
+            .eq("id", question_id)\
+            .execute()
+
+    async def delete_qa_answer(self, answer_id: int) -> bool:
+        """Delete answer and decrement question count"""
+        # Get question_id before deleting
+        answer = await self.get_qa_answer_by_id(answer_id)
+        if not answer:
+            return False
+
+        question_id = answer['question_id']
+
+        # Delete answer
+        result = self.client.table("study_qa_answers")\
+            .delete()\
+            .eq("id", answer_id)\
+            .execute()
+
+        # Decrement count
+        question = await self.get_qa_question_by_id(question_id)
+        if question:
+            new_count = max(0, (question.get('answer_count', 0) or 0) - 1)
+            self.client.table("study_qa_questions")\
+                .update({"answer_count": new_count})\
+                .eq("id", question_id)\
+                .execute()
+
+        return len(result.data) > 0
+
+    async def cast_qa_vote(
+        self,
+        user_id: int,
+        entity_type: str,
+        entity_id: int,
+        vote_type: str
+    ) -> Dict[str, Any]:
+        """Cast or update vote"""
+        # Check existing vote
+        existing = self.client.table("study_qa_votes")\
+            .select("*")\
+            .eq("user_id", user_id)\
+            .eq("entity_type", entity_type)\
+            .eq("entity_id", entity_id)\
+            .execute()
+
+        table_name = "study_qa_questions" if entity_type == "question" else "study_qa_answers"
+
+        if existing.data:
+            old_vote = existing.data[0]['vote_type']
+            if old_vote == vote_type:
+                # Remove vote if clicking same button
+                return await self.remove_qa_vote(user_id, entity_type, entity_id)
+            else:
+                # Switch vote
+                self.client.table("study_qa_votes")\
+                    .update({"vote_type": vote_type})\
+                    .eq("id", existing.data[0]['id'])\
+                    .execute()
+
+                # Update counts (decrement old, increment new)
+                entity = self.client.table(table_name)\
+                    .select("upvotes, downvotes")\
+                    .eq("id", entity_id)\
+                    .execute()
+
+                if entity.data:
+                    upvotes = entity.data[0].get('upvotes', 0) or 0
+                    downvotes = entity.data[0].get('downvotes', 0) or 0
+
+                    if old_vote == "upvote":
+                        upvotes = max(0, upvotes - 1)
+                        downvotes += 1
+                    else:
+                        downvotes = max(0, downvotes - 1)
+                        upvotes += 1
+
+                    self.client.table(table_name)\
+                        .update({"upvotes": upvotes, "downvotes": downvotes})\
+                        .eq("id", entity_id)\
+                        .execute()
+        else:
+            # Create new vote
+            vote_data = {
+                "user_id": user_id,
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "vote_type": vote_type,
+                "created_at": datetime.utcnow().isoformat()
+            }
+            self.client.table("study_qa_votes").insert(vote_data).execute()
+
+            # Update count
+            entity = self.client.table(table_name)\
+                .select("upvotes, downvotes")\
+                .eq("id", entity_id)\
+                .execute()
+
+            if entity.data:
+                if vote_type == "upvote":
+                    new_upvotes = (entity.data[0].get('upvotes', 0) or 0) + 1
+                    self.client.table(table_name)\
+                        .update({"upvotes": new_upvotes})\
+                        .eq("id", entity_id)\
+                        .execute()
+                else:
+                    new_downvotes = (entity.data[0].get('downvotes', 0) or 0) + 1
+                    self.client.table(table_name)\
+                        .update({"downvotes": new_downvotes})\
+                        .eq("id", entity_id)\
+                        .execute()
+
+        return {"message": "Vote cast successfully"}
+
+    async def remove_qa_vote(
+        self,
+        user_id: int,
+        entity_type: str,
+        entity_id: int
+    ) -> Dict[str, Any]:
+        """Remove vote"""
+        # Get existing vote
+        existing = self.client.table("study_qa_votes")\
+            .select("*")\
+            .eq("user_id", user_id)\
+            .eq("entity_type", entity_type)\
+            .eq("entity_id", entity_id)\
+            .execute()
+
+        if existing.data:
+            vote_type = existing.data[0]['vote_type']
+
+            # Delete vote
+            self.client.table("study_qa_votes")\
+                .delete()\
+                .eq("id", existing.data[0]['id'])\
+                .execute()
+
+            # Decrement count
+            table_name = "study_qa_questions" if entity_type == "question" else "study_qa_answers"
+            entity = self.client.table(table_name)\
+                .select("upvotes, downvotes")\
+                .eq("id", entity_id)\
+                .execute()
+
+            if entity.data:
+                if vote_type == "upvote":
+                    new_upvotes = max(0, (entity.data[0].get('upvotes', 0) or 0) - 1)
+                    self.client.table(table_name)\
+                        .update({"upvotes": new_upvotes})\
+                        .eq("id", entity_id)\
+                        .execute()
+                else:
+                    new_downvotes = max(0, (entity.data[0].get('downvotes', 0) or 0) - 1)
+                    self.client.table(table_name)\
+                        .update({"downvotes": new_downvotes})\
+                        .eq("id", entity_id)\
+                        .execute()
+
+        return {"message": "Vote removed"}
+
+    async def get_user_vote(
+        self,
+        user_id: int,
+        entity_type: str,
+        entity_id: int
+    ) -> Optional[str]:
+        """Get user's vote on an entity (returns 'upvote', 'downvote', or None)"""
+        result = self.client.table("study_qa_votes")\
+            .select("vote_type")\
+            .eq("user_id", user_id)\
+            .eq("entity_type", entity_type)\
+            .eq("entity_id", entity_id)\
+            .execute()
+
+        if result.data:
+            return result.data[0].get('vote_type')
+        return None
+
+    async def create_qa_comment(
+        self,
+        answer_id: int,
+        user_id: int,
+        content: str
+    ) -> Dict[str, Any]:
+        """Create comment on answer"""
+        data = {
+            "answer_id": answer_id,
+            "user_id": user_id,
+            "content": content,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        result = self.client.table("study_qa_comments").insert(data).execute()
+
+        if result.data:
+            # Get user name for response
+            user = await self.get_user_by_id(user_id)
+            result.data[0]['user_name'] = user.get('name') if user else None
+            return result.data[0]
+        return None
+
+    async def get_qa_comments(self, answer_id: int) -> List[Dict[str, Any]]:
+        """Get comments for answer"""
+        result = self.client.table("study_qa_comments")\
+            .select("*, study_users!inner(name)")\
+            .eq("answer_id", answer_id)\
+            .order("created_at", desc=False)\
+            .execute()
+
+        if result.data:
+            for c in result.data:
+                c['user_name'] = c.get('study_users', {}).get('name')
+            return result.data
+        return []
+
+    async def get_qa_comment_by_id(self, comment_id: int) -> Optional[Dict[str, Any]]:
+        """Get comment by ID"""
+        result = self.client.table("study_qa_comments")\
+            .select("*")\
+            .eq("id", comment_id)\
+            .execute()
+
+        return result.data[0] if result.data else None
+
+    async def delete_qa_comment(self, comment_id: int) -> bool:
+        """Delete comment"""
+        result = self.client.table("study_qa_comments")\
+            .delete()\
+            .eq("id", comment_id)\
+            .execute()
+
+        return len(result.data) > 0
+
+    async def mark_bounty_awarded(
+        self,
+        question_id: int,
+        awarded_to_user_id: int
+    ):
+        """Mark bounty as awarded"""
+        self.client.table("study_qa_bounties")\
+            .update({
+                "status": "awarded",
+                "awarded_to_user_id": awarded_to_user_id,
+                "awarded_at": datetime.utcnow().isoformat()
+            })\
+            .eq("question_id", question_id)\
+            .eq("status", "active")\
+            .execute()
+
+
 # Create singleton instance
 supabase_db = SupabaseDBService()
