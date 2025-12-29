@@ -5,6 +5,13 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { getWrongQuestions, updateQuestionStatus, searchQuestions, deleteQuestion, regenerateExplanation, getSimilarQuestions } from '../services/api';
 
+// Subject list (same as Upload.js)
+const SUBJECTS = [
+  'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Chinese',
+  'Geography', 'History', 'Literature', 'Economics', 'Accounting',
+  'Computer Science', 'Art', 'Music', 'Physical Education', 'Other'
+];
+
 // Helper to resolve image URLs - handles both relative and absolute URLs
 const getImageUrl = (imageUrl) => {
   if (!imageUrl) return null;
@@ -29,13 +36,23 @@ const Review = ({ user }) => {
     end_date: '',
   });
 
-  // Category options based on selected subject
+  // Category options based on selected subject (same as Upload.js)
   const categoryOptions = {
     Mathematics: ['Algebra', 'Geometry', 'Arithmetic', 'Calculus', 'Statistics', 'Trigonometry'],
     Physics: ['Mechanics', 'Electricity', 'Magnetism', 'Thermodynamics', 'Optics', 'Modern Physics'],
     Chemistry: ['Organic Chemistry', 'Inorganic Chemistry', 'Physical Chemistry', 'Analytical Chemistry'],
     Biology: ['Cell Biology', 'Genetics', 'Evolution', 'Ecology', 'Human Biology', 'Botany'],
     English: ['Grammar', 'Comprehension', 'Composition', 'Literature', 'Vocabulary'],
+    Chinese: ['Reading', 'Writing', 'Grammar', 'Comprehension', 'Composition'],
+    Geography: ['Physical Geography', 'Human Geography', 'Environmental Geography'],
+    History: ['World History', 'Local History', 'Ancient History', 'Modern History'],
+    Literature: ['Poetry', 'Prose', 'Drama', 'Fiction', 'Non-Fiction'],
+    Economics: ['Microeconomics', 'Macroeconomics', 'International Economics'],
+    Accounting: ['Financial Accounting', 'Management Accounting', 'Cost Accounting'],
+    'Computer Science': ['Programming', 'Data Structures', 'Algorithms', 'Databases', 'Networks'],
+    Art: ['Drawing', 'Painting', 'Sculpture', 'Design'],
+    Music: ['Theory', 'Performance', 'Composition', 'History'],
+    'Physical Education': ['Sports', 'Fitness', 'Health'],
     Other: []
   };
   const [searchQuery, setSearchQuery] = useState('');
@@ -191,12 +208,11 @@ const Review = ({ user }) => {
               className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100"
             >
               <option value="" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">All Subjects</option>
-              <option value="Mathematics" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Mathematics</option>
-              <option value="Physics" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Physics</option>
-              <option value="Chemistry" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Chemistry</option>
-              <option value="Biology" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Biology</option>
-              <option value="English" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">English</option>
-              <option value="Other" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Other</option>
+              {SUBJECTS.map((subject) => (
+                <option key={subject} value={subject} className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">
+                  {subject}
+                </option>
+              ))}
             </select>
           </div>
 

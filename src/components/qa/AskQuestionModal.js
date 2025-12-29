@@ -7,21 +7,40 @@ const SUBJECTS = [
   'Computer Science', 'Art', 'Music', 'Physical Education', 'Other'
 ];
 
-const BOUNTY_OPTIONS = [0, 5, 10, 15, 20, 30, 50];
-
 const AskQuestionModal = ({ user, onClose, onQuestionCreated }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [subject, setSubject] = useState('');
+  const [bountyType, setBountyType] = useState('none'); // 'none' or 'custom'
   const [bountyAmount, setBountyAmount] = useState(0);
+  const [customBountyInput, setCustomBountyInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleBountyTypeChange = (type) => {
+    setBountyType(type);
+    if (type === 'none') {
+      setBountyAmount(0);
+      setCustomBountyInput('');
+    }
+  };
+
+  const handleCustomBountyChange = (value) => {
+    setCustomBountyInput(value);
+    const amount = parseInt(value) || 0;
+    setBountyAmount(amount);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!title.trim() || !content.trim() || !subject) {
       setError('Please fill in all required fields');
+      return;
+    }
+
+    if (bountyType === 'custom' && (!customBountyInput || bountyAmount <= 0)) {
+      setError('Please enter a valid bounty amount (positive integer)');
       return;
     }
 
@@ -148,26 +167,51 @@ const AskQuestionModal = ({ user, onClose, onQuestionCreated }) => {
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
                 Bounty (Optional)
               </label>
-              <div className="flex flex-wrap gap-2">
-                {BOUNTY_OPTIONS.map((amount) => (
-                  <button
-                    key={amount}
-                    type="button"
-                    onClick={() => setBountyAmount(amount)}
-                    disabled={amount > (user?.credits || 0)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                      bountyAmount === amount
-                        ? 'bg-orange-500 text-white'
-                        : amount > (user?.credits || 0)
-                          ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    {amount === 0 ? 'No bounty' : `${amount} credits`}
-                  </button>
-                ))}
+
+              {/* Bounty Type Selection */}
+              <div className="space-y-3">
+                {/* No Bounty Option */}
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="bountyType"
+                    checked={bountyType === 'none'}
+                    onChange={() => handleBountyTypeChange('none')}
+                    className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="ml-3 text-gray-700 dark:text-gray-300">No bounty</span>
+                </label>
+
+                {/* Custom Bounty Option */}
+                <label className="flex items-start cursor-pointer">
+                  <input
+                    type="radio"
+                    name="bountyType"
+                    checked={bountyType === 'custom'}
+                    onChange={() => handleBountyTypeChange('custom')}
+                    className="w-4 h-4 mt-1 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="ml-3 flex-1">
+                    <span className="text-gray-700 dark:text-gray-300">Custom credits</span>
+                    {bountyType === 'custom' && (
+                      <div className="mt-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max={user?.credits || 0}
+                          value={customBountyInput}
+                          onChange={(e) => handleCustomBountyChange(e.target.value)}
+                          placeholder="Enter amount"
+                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </label>
               </div>
-              <div className="mt-2 flex items-center justify-between text-xs">
+
+              {/* Info Text */}
+              <div className="mt-3 flex items-center justify-between text-xs">
                 <span className="text-gray-500 dark:text-gray-400">
                   Available: <span className="font-semibold text-gray-700 dark:text-gray-300">{user?.credits || 0}</span> credits
                 </span>
