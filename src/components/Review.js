@@ -190,13 +190,13 @@ const Review = ({ user }) => {
               onChange={(e) => handleSubjectChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100"
             >
-              <option value="" className="text-gray-900">All Subjects</option>
-              <option value="Mathematics" className="text-gray-900">Mathematics</option>
-              <option value="Physics" className="text-gray-900">Physics</option>
-              <option value="Chemistry" className="text-gray-900">Chemistry</option>
-              <option value="Biology" className="text-gray-900">Biology</option>
-              <option value="English" className="text-gray-900">English</option>
-              <option value="Other" className="text-gray-900">Other</option>
+              <option value="" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">All Subjects</option>
+              <option value="Mathematics" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Mathematics</option>
+              <option value="Physics" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Physics</option>
+              <option value="Chemistry" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Chemistry</option>
+              <option value="Biology" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Biology</option>
+              <option value="English" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">English</option>
+              <option value="Other" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Other</option>
             </select>
           </div>
 
@@ -209,11 +209,11 @@ const Review = ({ user }) => {
               disabled={!filters.subject}
               className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="" className="text-gray-900">
+              <option value="" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">
                 {filters.subject ? 'All Categories' : 'Select Subject First'}
               </option>
               {filters.subject && categoryOptions[filters.subject]?.map((cat) => (
-                <option key={cat} value={cat} className="text-gray-900">{cat}</option>
+                <option key={cat} value={cat} className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">{cat}</option>
               ))}
             </select>
           </div>
@@ -226,10 +226,10 @@ const Review = ({ user }) => {
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100"
             >
-              <option value="" className="text-gray-900">All Status</option>
-              <option value="pending" className="text-gray-900">Pending</option>
-              <option value="reviewing" className="text-gray-900">Reviewing</option>
-              <option value="understood" className="text-gray-900">Understood</option>
+              <option value="" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">All Status</option>
+              <option value="pending" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Pending</option>
+              <option value="reviewing" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Reviewing</option>
+              <option value="understood" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">Understood</option>
             </select>
           </div>
 

@@ -227,43 +227,32 @@ const Upload = ({ user }) => {
           )}
         </div>
 
-        {/* Extraction Mode Toggle */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Wrong Questions Only
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {wrongOnly
-                  ? 'Extract only questions marked with ✗ (crosses/wrong marks)'
-                  : 'Extract ALL questions from the image regardless of marks'
-                }
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setWrongOnly(!wrongOnly)}
-              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                wrongOnly ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-              }`}
-              role="switch"
-              aria-checked={wrongOnly}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  wrongOnly ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
         {/* File Upload */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
-            Upload Image *
-          </label>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center mb-3">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+              Upload Image *
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">Wrong Questions Only</span>
+              <button
+                type="button"
+                onClick={() => setWrongOnly(!wrongOnly)}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  wrongOnly ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+                role="switch"
+                aria-checked={wrongOnly}
+                title={wrongOnly ? 'Extract only wrong questions (marked with ✗)' : 'Extract all questions from image'}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    wrongOnly ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
 
           {!preview ? (
             <div
