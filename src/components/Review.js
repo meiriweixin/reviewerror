@@ -4,6 +4,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { getWrongQuestions, updateQuestionStatus, updateQuestionNotes, searchQuestions, deleteQuestion, regenerateExplanation, getSimilarQuestions } from '../services/api';
+import MermaidDiagram from './MermaidDiagram';
 
 // Subject list (same as Upload.js)
 const SUBJECTS = [
@@ -59,7 +60,7 @@ const Review = ({ user }) => {
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [similarQuestions, setSimilarQuestions] = useState({}); // { questionId: [q1, q2, q3] }
+  const [similarQuestions, setSimilarQuestions] = useState({}); // { questionId: { questions: [...], diagrams: [...] } }
   const [loadingSimilar, setLoadingSimilar] = useState(null); // questionId currently loading
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState('');
@@ -170,10 +171,13 @@ const Review = ({ user }) => {
     setLoadingSimilar(questionId);
     try {
       const result = await getSimilarQuestions(questionId);
-      // Store similar questions in state
+      // Store similar questions and diagrams in state
       setSimilarQuestions(prev => ({
         ...prev,
-        [questionId]: result.similar_questions
+        [questionId]: {
+          questions: result.similar_questions || [],
+          diagrams: result.diagrams || []
+        }
       }));
     } catch (error) {
       console.error('Failed to get similar questions:', error);
@@ -414,15 +418,20 @@ const Review = ({ user }) => {
               </div>
 
               {/* Display Similar Questions if available */}
-              {similarQuestions[question.id] && (
+              {similarQuestions[question.id] && similarQuestions[question.id].questions && (
                 <div className="mt-4 p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl">
                   <h4 className="text-sm font-semibold text-indigo-900 dark:text-indigo-300 mb-3">Practice Questions:</h4>
                   <div className="space-y-3">
-                    {similarQuestions[question.id].map((sq, idx) => (
+                    {similarQuestions[question.id].questions.map((sq, idx) => (
                       <div key={idx} className="bg-white dark:bg-slate-900/50 p-3 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
                         <p className="text-sm text-indigo-900 dark:text-indigo-200">
                           <span className="font-semibold">{idx + 1}.</span> {sq}
                         </p>
+                        {similarQuestions[question.id].diagrams[idx] && (
+                          <div className="mt-2">
+                            <MermaidDiagram code={similarQuestions[question.id].diagrams[idx]} />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -587,15 +596,20 @@ const Review = ({ user }) => {
               </button>
 
               {/* Display Similar Questions in modal if available */}
-              {similarQuestions[selectedQuestion.id] && (
+              {similarQuestions[selectedQuestion.id] && similarQuestions[selectedQuestion.id].questions && (
                 <div className="mb-4 p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl">
                   <h4 className="font-semibold text-indigo-900 dark:text-indigo-300 mb-3">Practice Questions:</h4>
-                  <div className="space-y-3">
-                    {similarQuestions[selectedQuestion.id].map((sq, idx) => (
+                  <div className="space-y-4">
+                    {similarQuestions[selectedQuestion.id].questions.map((sq, idx) => (
                       <div key={idx} className="bg-white dark:bg-slate-900/50 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
                         <p className="text-indigo-900 dark:text-indigo-200">
                           <span className="font-semibold text-base">{idx + 1}.</span> {sq}
                         </p>
+                        {similarQuestions[selectedQuestion.id].diagrams[idx] && (
+                          <div className="mt-3">
+                            <MermaidDiagram code={similarQuestions[selectedQuestion.id].diagrams[idx]} />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

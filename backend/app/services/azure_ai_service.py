@@ -343,17 +343,28 @@ STRICT RULES:
         subject: str,
         grade: Optional[str] = None,
         model: str = "gpt-4o"
-    ) -> tuple[List[str], Dict[str, int]]:
+    ) -> tuple[Dict[str, Any], Dict[str, int]]:
         """
-        Generate 3 similar practice questions based on the original question
+        Generate 3 similar practice questions based on the original question,
+        with optional Mermaid.js diagrams when beneficial.
 
         Returns:
-            Tuple of (list of 3 similar questions, token_usage dict)
+            Tuple of (dict with questions and diagrams, token_usage dict)
+            The dict contains:
+            - questions: list of question text strings
+            - diagrams: list of Mermaid diagram code strings (or null for each)
         """
         try:
             grade_context = f" for {grade} level" if grade else ""
 
-            prompt = f"""Based on this {subject} question{grade_context}:
+            # Subjects that commonly benefit from diagrams
+            diagram_subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology',
+                              'Computer Science', 'Geography', 'Economics']
+
+            include_diagrams = subject in diagram_subjects
+
+            if include_diagrams:
+                prompt = f"""Based on this {subject} question{grade_context}:
 
 "{question_text}"
 
@@ -365,9 +376,64 @@ REQUIREMENTS:
 3. Use different numbers, names, scenarios, or contexts
 4. Questions should be clearly distinct from each other
 5. Keep each question concise and clear
-6. Number the questions as 1), 2), 3)
 
-Output ONLY the 3 numbered questions, nothing else."""
+FOR EACH QUESTION, decide if a DIAGRAM would help visualize the concept:
+- For flowcharts, processes, relationships: Use Mermaid.js flowchart syntax
+- For sequences, timelines: Use Mermaid.js sequence diagram syntax
+- For hierarchies, trees: Use Mermaid.js graph TD syntax
+- If no diagram needed, leave it null
+
+Return your response as a JSON object with this EXACT structure:
+{{
+    "questions": [
+        {{
+            "text": "Full question text here",
+            "diagram": "graph TD; A[Start]-->B[End]"
+        }},
+        {{
+            "text": "Second question text",
+            "diagram": null
+        }},
+        {{
+            "text": "Third question text",
+            "diagram": "flowchart LR; A-->B-->C"
+        }}
+    ]
+}}
+
+MERMAID SYNTAX TIPS:
+- Flowchart: graph TD; A[Box]-->B[Box]; or graph LR for left-to-right
+- Use brackets for boxes: A[Text], B[More text]
+- Use arrows: -->, --text-->, -.->
+- For math: use simple text, no LaTeX
+- Keep diagrams SIMPLE with 3-6 nodes maximum
+- Use semicolons to separate statements
+
+Return ONLY valid JSON, no markdown code blocks."""
+            else:
+                prompt = f"""Based on this {subject} question{grade_context}:
+
+"{question_text}"
+
+Generate 3 SIMILAR practice questions that test the SAME concepts and skills but with DIFFERENT numbers, scenarios, or contexts.
+
+REQUIREMENTS:
+1. Each question should be at the same difficulty level
+2. Each question should test the same underlying concept/skill
+3. Use different numbers, names, scenarios, or contexts
+4. Questions should be clearly distinct from each other
+5. Keep each question concise and clear
+
+Return your response as a JSON object with this EXACT structure:
+{{
+    "questions": [
+        {{"text": "Full question text here", "diagram": null}},
+        {{"text": "Second question text", "diagram": null}},
+        {{"text": "Third question text", "diagram": null}}
+    ]
+}}
+
+Return ONLY valid JSON, no markdown code blocks."""
 
             # Get appropriate client and deployment based on model choice
             client, deployment = self.get_client_and_deployment(model)
@@ -375,11 +441,11 @@ Output ONLY the 3 numbered questions, nothing else."""
             response = client.chat.completions.create(
                 model=deployment,
                 messages=[
-                    {"role": "system", "content": "You are an expert educational question generator. Create practice questions that help students master concepts through varied practice."},
+                    {"role": "system", "content": "You are an expert educational question generator. Create practice questions that help students master concepts through varied practice. When diagrams are requested, generate valid Mermaid.js syntax. Always return valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=500,
-                temperature=0.7  # Higher temperature for more variety
+                max_tokens=1200,  # Increased for diagram content
+                temperature=0.7
             )
 
             tokens_used = {
@@ -388,51 +454,79 @@ Output ONLY the 3 numbered questions, nothing else."""
                 "total_tokens": response.usage.total_tokens
             }
 
-            # Parse the response to extract the 3 questions
             result_text = response.choices[0].message.content.strip()
 
-            # Split by numbered patterns (1), 2), 3))
-            questions = []
-            lines = result_text.split('\n')
-            current_question = []
+            # Parse JSON response
+            try:
+                # Remove markdown code blocks if present
+                if result_text.startswith("```json"):
+                    result_text = result_text[7:]
+                if result_text.startswith("```"):
+                    result_text = result_text[3:]
+                if result_text.endswith("```"):
+                    result_text = result_text[:-3]
 
-            for line in lines:
-                line = line.strip()
-                # Check if line starts with a number pattern
-                if line.startswith(('1)', '2)', '3)')):
-                    if current_question:
-                        # Save previous question
-                        questions.append(' '.join(current_question).strip())
-                        current_question = []
-                    # Remove the number prefix and add the line
-                    current_question.append(line[2:].strip())
-                elif current_question:
-                    # Continue current question
-                    current_question.append(line)
+                parsed = json.loads(result_text.strip())
+                questions_data = parsed.get("questions", [])
 
-            # Add the last question
-            if current_question:
-                questions.append(' '.join(current_question).strip())
+                # Extract questions and diagrams
+                questions = []
+                diagrams = []
+                for q in questions_data[:3]:
+                    questions.append(q.get("text", "Unable to generate question."))
+                    diagrams.append(q.get("diagram"))
 
-            # Ensure we have exactly 3 questions
-            if len(questions) < 3:
-                # If parsing failed, try simple split
-                parts = result_text.split('\n\n')
-                questions = [p.strip() for p in parts if p.strip()][:3]
+                # Pad if needed
+                while len(questions) < 3:
+                    questions.append("Unable to generate question. Please try again.")
+                    diagrams.append(None)
 
-            # Pad with placeholder if needed
-            while len(questions) < 3:
-                questions.append("Unable to generate question. Please try again.")
+                return {
+                    "questions": questions[:3],
+                    "diagrams": diagrams[:3]
+                }, tokens_used
 
-            return questions[:3], tokens_used
+            except json.JSONDecodeError:
+                # Fallback: parse as plain text (old format)
+                questions = []
+                lines = result_text.split('\n')
+                current_question = []
+
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith(('1)', '2)', '3)')):
+                        if current_question:
+                            questions.append(' '.join(current_question).strip())
+                            current_question = []
+                        current_question.append(line[2:].strip())
+                    elif current_question:
+                        current_question.append(line)
+
+                if current_question:
+                    questions.append(' '.join(current_question).strip())
+
+                if len(questions) < 3:
+                    parts = result_text.split('\n\n')
+                    questions = [p.strip() for p in parts if p.strip()][:3]
+
+                while len(questions) < 3:
+                    questions.append("Unable to generate question. Please try again.")
+
+                return {
+                    "questions": questions[:3],
+                    "diagrams": [None, None, None]
+                }, tokens_used
 
         except Exception as e:
             print(f"Error generating similar questions: {e}")
-            return [
-                "Unable to generate similar question 1.",
-                "Unable to generate similar question 2.",
-                "Unable to generate similar question 3."
-            ], {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+            return {
+                "questions": [
+                    "Unable to generate similar question 1.",
+                    "Unable to generate similar question 2.",
+                    "Unable to generate similar question 3."
+                ],
+                "diagrams": [None, None, None]
+            }, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 # Create a singleton instance
 azure_ai_service = AzureAIService()

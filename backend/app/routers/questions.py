@@ -515,7 +515,8 @@ async def generate_similar_questions(
         user_model = current_user.get('preferred_model', 'gpt-5-chat')
 
         # Generate similar questions using user's preferred model
-        similar_questions, tokens_used = await azure_ai_service.generate_similar_questions(
+        # Returns dict with 'questions' and 'diagrams' arrays
+        result, tokens_used = await azure_ai_service.generate_similar_questions(
             question.get('question_text'),
             question.get('subject'),
             question.get('grade'),
@@ -535,7 +536,8 @@ async def generate_similar_questions(
 
         return {
             "question_id": question_id,
-            "similar_questions": similar_questions,
+            "similar_questions": result.get("questions", []),
+            "diagrams": result.get("diagrams", []),
             "tokens_used": tokens_used
         }
 
