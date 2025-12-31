@@ -57,7 +57,8 @@ const MermaidDiagram = ({ code, className = '' }) => {
       setLoading(false);
     } catch (err) {
       console.error('Mermaid rendering error:', err);
-      setError('Diagram syntax error');
+      console.error('Failed Mermaid code:', code);
+      setError(`Diagram syntax error: ${err.message || 'Invalid syntax'}`);
       setLoading(false);
     }
   }, [code]);

@@ -1,6 +1,7 @@
 from openai import AzureOpenAI
 from app.config import settings
 import base64
+import re
 from typing import List, Dict, Any, Optional
 import json
 
@@ -337,6 +338,37 @@ STRICT RULES:
             print(f"Error generating explanation: {e}")
             return "Unable to generate explanation at this time.", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
+    def _clean_mermaid_code(self, code: str) -> Optional[str]:
+        """Clean and validate Mermaid diagram code."""
+        if not code or not isinstance(code, str):
+            return None
+
+        # Replace escaped newlines with actual newlines
+        code = code.replace('\\n', '\n')
+
+        # Remove any markdown code block markers
+        code = code.strip()
+        if code.startswith('```mermaid'):
+            code = code[10:]
+        if code.startswith('```'):
+            code = code[3:]
+        if code.endswith('```'):
+            code = code[:-3]
+        code = code.strip()
+
+        # Must start with valid Mermaid directive
+        valid_starts = ['graph ', 'flowchart ', 'sequenceDiagram', 'classDiagram',
+                       'stateDiagram', 'erDiagram', 'pie ', 'gantt']
+        if not any(code.startswith(s) for s in valid_starts):
+            return None
+
+        # Check if diagram has Chinese - if so, it's likely invalid
+        if re.search(r'[\u4e00-\u9fff]', code):
+            # Try to continue anyway, but log warning
+            print(f"Warning: Mermaid code contains Chinese characters")
+
+        return code
+
     async def generate_similar_questions(
         self,
         question_text: str,
@@ -363,12 +395,20 @@ STRICT RULES:
 
             include_diagrams = subject in diagram_subjects
 
+            # Language requirement: Chinese subject uses Chinese, all others use English
+            if subject == 'Chinese':
+                language_instruction = "IMPORTANT: Generate all questions in Chinese (中文)."
+            else:
+                language_instruction = "IMPORTANT: Generate all questions in English only."
+
             if include_diagrams:
                 prompt = f"""Based on this {subject} question{grade_context}:
 
 "{question_text}"
 
 Generate 3 SIMILAR practice questions that test the SAME concepts and skills but with DIFFERENT numbers, scenarios, or contexts.
+
+{language_instruction}
 
 REQUIREMENTS:
 1. Each question should be at the same difficulty level
@@ -378,17 +418,30 @@ REQUIREMENTS:
 5. Keep each question concise and clear
 
 FOR EACH QUESTION, decide if a DIAGRAM would help visualize the concept:
-- For flowcharts, processes, relationships: Use Mermaid.js flowchart syntax
-- For sequences, timelines: Use Mermaid.js sequence diagram syntax
-- For hierarchies, trees: Use Mermaid.js graph TD syntax
-- If no diagram needed, leave it null
+- For circuits, processes, relationships: Use Mermaid flowchart
+- For hierarchies: Use Mermaid graph
+- If no diagram needed or question is purely calculation: set diagram to null
+
+CRITICAL MERMAID SYNTAX RULES (MUST FOLLOW EXACTLY):
+1. Start with: graph LR or graph TD (LR=left-right, TD=top-down)
+2. Use ONLY English labels, no Chinese characters in diagrams
+3. Node format: A[Label] or A((Circle)) or A{{Diamond}}
+4. Arrow format: A --> B or A --- B
+5. Use newlines between statements, NOT semicolons
+6. Keep labels SHORT (1-3 words max)
+7. Maximum 6 nodes per diagram
+
+VALID MERMAID EXAMPLES:
+- Circuit: graph LR\n    L1[L1] --> L2[L2]\n    L2 --> L3[L3]
+- Parallel circuit: graph TD\n    S[Source] --> L1[L1]\n    S --> L2[L2]
+- Process: graph LR\n    A[Input] --> B[Process] --> C[Output]
 
 Return your response as a JSON object with this EXACT structure:
 {{
     "questions": [
         {{
             "text": "Full question text here",
-            "diagram": "graph TD; A[Start]-->B[End]"
+            "diagram": "graph LR\\n    A[L1] --> B[L2]\\n    B --> C[L3]"
         }},
         {{
             "text": "Second question text",
@@ -396,18 +449,10 @@ Return your response as a JSON object with this EXACT structure:
         }},
         {{
             "text": "Third question text",
-            "diagram": "flowchart LR; A-->B-->C"
+            "diagram": "graph TD\\n    S[Power] --> L1[Bulb1]\\n    S --> L2[Bulb2]"
         }}
     ]
 }}
-
-MERMAID SYNTAX TIPS:
-- Flowchart: graph TD; A[Box]-->B[Box]; or graph LR for left-to-right
-- Use brackets for boxes: A[Text], B[More text]
-- Use arrows: -->, --text-->, -.->
-- For math: use simple text, no LaTeX
-- Keep diagrams SIMPLE with 3-6 nodes maximum
-- Use semicolons to separate statements
 
 Return ONLY valid JSON, no markdown code blocks."""
             else:
@@ -416,6 +461,8 @@ Return ONLY valid JSON, no markdown code blocks."""
 "{question_text}"
 
 Generate 3 SIMILAR practice questions that test the SAME concepts and skills but with DIFFERENT numbers, scenarios, or contexts.
+
+{language_instruction}
 
 REQUIREMENTS:
 1. Each question should be at the same difficulty level
@@ -474,7 +521,11 @@ Return ONLY valid JSON, no markdown code blocks."""
                 diagrams = []
                 for q in questions_data[:3]:
                     questions.append(q.get("text", "Unable to generate question."))
-                    diagrams.append(q.get("diagram"))
+                    diagram = q.get("diagram")
+                    # Clean up diagram code if present
+                    if diagram:
+                        diagram = self._clean_mermaid_code(diagram)
+                    diagrams.append(diagram)
 
                 # Pad if needed
                 while len(questions) < 3:
