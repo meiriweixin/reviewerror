@@ -161,7 +161,7 @@ const Upload = ({ user }) => {
   }, []);
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-2xl mx-auto min-h-[calc(100vh-200px)] flex flex-col justify-center">
       {/* Success Message */}
       {success && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl flex items-start gap-3">
