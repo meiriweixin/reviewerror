@@ -87,12 +87,8 @@ const CommunityQA = ({ user }) => {
 
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Community Q&A</h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Ask questions and help your peers learn</p>
-        </div>
+      {/* Action Button - Top Right */}
+      <div className="flex justify-end mb-6">
         <button
           onClick={() => setShowAskModal(true)}
           className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"

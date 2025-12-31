@@ -162,12 +162,8 @@ const PaperLibrary = ({ user }) => {
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Header with Upload Button */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Paper Library</h2>
-          <p className="text-gray-600 mt-1">Browse and share exam papers with the community</p>
-        </div>
+      {/* Action Button - Top Right */}
+      <div className="flex justify-end mb-6">
         <button
           onClick={() => setShowUploadModal(true)}
           className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg flex items-center gap-2"

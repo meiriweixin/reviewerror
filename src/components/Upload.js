@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { uploadImage } from '../services/api';
 
 const SUBJECTS = [
@@ -130,13 +130,38 @@ const Upload = ({ user }) => {
     e.preventDefault();
   };
 
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          const fakeEvent = { target: { files: [file] } };
+          handleFileChange(fakeEvent);
+        }
+        break;
+      }
+    }
+  };
+
+  // Add paste event listener
+  useEffect(() => {
+    const handleGlobalPaste = (e) => {
+      // Only handle paste if we're on this component and no input is focused
+      const activeElement = document.activeElement;
+      if (!activeElement || activeElement.tagName === 'BODY' || activeElement.tagName === 'DIV') {
+        handlePaste(e);
+      }
+    };
+
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => window.removeEventListener('paste', handleGlobalPaste);
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Upload Question Paper</h2>
-        <p className="text-gray-600 mt-1">Upload scanned images of your exam papers or worksheets</p>
-      </div>
-
       {/* Success Message */}
       {success && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl flex items-start gap-3">
@@ -272,9 +297,9 @@ const Upload = ({ user }) => {
                   <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
                 <p className="mt-2 text-sm text-gray-600">
-                  <span className="font-semibold text-blue-600">Click to upload</span> or drag and drop
+                  <span className="font-semibold text-blue-600">Click</span>, Drag & Drop, or <span className="font-semibold text-blue-600">Paste Image</span>
                 </p>
-                <p className="text-xs text-gray-500 mt-1">PNG, JPG, JPEG up to 10MB</p>
+                <p className="text-xs text-gray-500 mt-1">PNG, JPG, JPEG up to 10MB • Press Ctrl+V (Cmd+V) to paste</p>
               </label>
             </div>
           ) : (
