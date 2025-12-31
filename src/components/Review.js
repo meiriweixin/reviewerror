@@ -427,7 +427,7 @@ const Review = ({ user }) => {
                         <p className="text-sm text-indigo-900 dark:text-indigo-200">
                           <span className="font-semibold">{idx + 1}.</span> {sq}
                         </p>
-                        {similarQuestions[question.id].diagrams[idx] && (
+                        {similarQuestions[question.id].diagrams && similarQuestions[question.id].diagrams[idx] && (
                           <div className="mt-2">
                             <MermaidDiagram code={similarQuestions[question.id].diagrams[idx]} />
                           </div>
@@ -605,7 +605,7 @@ const Review = ({ user }) => {
                         <p className="text-indigo-900 dark:text-indigo-200">
                           <span className="font-semibold text-base">{idx + 1}.</span> {sq}
                         </p>
-                        {similarQuestions[selectedQuestion.id].diagrams[idx] && (
+                        {similarQuestions[selectedQuestion.id].diagrams && similarQuestions[selectedQuestion.id].diagrams[idx] && (
                           <div className="mt-3">
                             <MermaidDiagram code={similarQuestions[selectedQuestion.id].diagrams[idx]} />
                           </div>

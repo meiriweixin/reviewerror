@@ -22,7 +22,8 @@
       "Bash(Select-String -Pattern \"Compiled|Failed|error|warning\")",
       "Bash(Select-Object -First 10)",
       "Bash(timeout /t 5 /nobreak)",
-      "Bash(dir /s /b src*.js src*.jsx src*.ts src*.tsx)"
+      "Bash(dir /s /b src*.js src*.jsx src*.ts src*.tsx)",
+      "Bash(timeout /t 60 /nobreak)"
     ],
     "deny": [],
     "ask": []

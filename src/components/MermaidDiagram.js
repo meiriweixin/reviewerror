@@ -1,70 +1,87 @@
-import React, { useEffect, useRef, useState } from 'react';
-import mermaid from 'mermaid';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
-// Initialize mermaid with configuration
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'base',
-  themeVariables: {
-    primaryColor: '#818cf8',      // indigo-400
-    primaryTextColor: '#1e1b4b',  // indigo-950
-    primaryBorderColor: '#6366f1', // indigo-500
-    lineColor: '#6366f1',         // indigo-500
-    secondaryColor: '#c7d2fe',    // indigo-200
-    tertiaryColor: '#eef2ff',     // indigo-50
-    background: '#ffffff',
-    fontSize: '14px',
-  },
-  flowchart: {
-    useMaxWidth: true,
-    htmlLabels: true,
-    curve: 'basis',
-  },
-  securityLevel: 'strict',
-});
+// Lazy load mermaid to avoid SSR issues
+let mermaidInstance = null;
+const getMermaid = async () => {
+  if (!mermaidInstance) {
+    const mermaid = await import('mermaid');
+    mermaidInstance = mermaid.default;
+    mermaidInstance.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#818cf8',
+        primaryTextColor: '#1e1b4b',
+        primaryBorderColor: '#6366f1',
+        lineColor: '#6366f1',
+        secondaryColor: '#c7d2fe',
+        tertiaryColor: '#eef2ff',
+        background: '#ffffff',
+        fontSize: '14px',
+      },
+      flowchart: {
+        useMaxWidth: true,
+        htmlLabels: true,
+        curve: 'basis',
+      },
+      securityLevel: 'loose',
+    });
+  }
+  return mermaidInstance;
+};
 
 const MermaidDiagram = ({ code, className = '' }) => {
   const containerRef = useRef(null);
   const [error, setError] = useState(null);
-  const [rendered, setRendered] = useState(false);
+  const [svgContent, setSvgContent] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const renderDiagram = useCallback(async () => {
+    if (!code) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const mermaid = await getMermaid();
+
+      // Generate unique ID for this diagram
+      const id = `mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Render the diagram
+      const { svg } = await mermaid.render(id, code);
+      setSvgContent(svg);
+      setLoading(false);
+    } catch (err) {
+      console.error('Mermaid rendering error:', err);
+      setError('Diagram syntax error');
+      setLoading(false);
+    }
+  }, [code]);
 
   useEffect(() => {
-    const renderDiagram = async () => {
-      if (!code || !containerRef.current) return;
-
-      try {
-        // Clear previous content
-        containerRef.current.innerHTML = '';
-        setError(null);
-
-        // Generate unique ID for this diagram
-        const id = `mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-        // Validate and render the diagram
-        const isValid = await mermaid.parse(code);
-        if (isValid) {
-          const { svg } = await mermaid.render(id, code);
-          if (containerRef.current) {
-            containerRef.current.innerHTML = svg;
-            setRendered(true);
-          }
-        }
-      } catch (err) {
-        console.error('Mermaid rendering error:', err);
-        setError('Failed to render diagram');
-        setRendered(false);
-      }
-    };
-
     renderDiagram();
-  }, [code]);
+  }, [renderDiagram]);
 
   if (!code) return null;
 
   if (error) {
     return (
-      <div className={`bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl p-3 text-sm text-red-600 dark:text-red-400 ${className}`}>
-        {error}
+      <div className={`bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-3 text-xs text-gray-500 dark:text-gray-400 ${className}`}>
+        <span className="italic">{error}</span>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className={`bg-white dark:bg-slate-800 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800 ${className}`}>
+        <div className="flex items-center justify-center h-16">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
+        </div>
       </div>
     );
   }
@@ -73,14 +90,8 @@ const MermaidDiagram = ({ code, className = '' }) => {
     <div
       ref={containerRef}
       className={`mermaid-container bg-white dark:bg-slate-800 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800 overflow-x-auto ${className}`}
-      style={{ minHeight: rendered ? 'auto' : '100px' }}
-    >
-      {!rendered && (
-        <div className="flex items-center justify-center h-20">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-500"></div>
-        </div>
-      )}
-    </div>
+      dangerouslySetInnerHTML={{ __html: svgContent }}
+    />
   );
 };
 
