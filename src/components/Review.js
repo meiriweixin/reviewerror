@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { getWrongQuestions, updateQuestionStatus, updateQuestionNotes, searchQuestions, deleteQuestion, regenerateExplanation, getSimilarQuestions } from '../services/api';
+import { getWrongQuestions, updateQuestionStatus, updateQuestionNotes, searchQuestions, deleteQuestion, regenerateExplanation, getSimilarQuestions, getCustomSubjects } from '../services/api';
 import MermaidDiagram from './MermaidDiagram';
 
 // Subject list (same as Upload.js)
@@ -65,6 +65,21 @@ const Review = ({ user }) => {
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [customSubjects, setCustomSubjects] = useState([]);
+
+  // Load custom subjects on mount
+  const loadCustomSubjects = useCallback(async () => {
+    try {
+      const subjects = await getCustomSubjects();
+      setCustomSubjects(subjects);
+    } catch (err) {
+      console.error('Failed to load custom subjects:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCustomSubjects();
+  }, [loadCustomSubjects]);
 
   // Watch for user.grade changes and update filters
   useEffect(() => {
@@ -247,6 +262,15 @@ const Review = ({ user }) => {
               {SUBJECTS.map((subject) => (
                 <option key={subject} value={subject} className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">
                   {subject}
+                </option>
+              ))}
+              {/* Custom subjects saved by user */}
+              {customSubjects.length > 0 && (
+                <option disabled className="text-gray-400">── My Subjects ──</option>
+              )}
+              {customSubjects.map((cs) => (
+                <option key={`custom-${cs.id}`} value={cs.name} className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">
+                  {cs.name}
                 </option>
               ))}
             </select>

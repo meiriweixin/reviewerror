@@ -52,7 +52,7 @@ const CATEGORIES = [
   'Other',
 ];
 
-const PDFViewer = ({ paper, fileUrl, onClose, user }) => {
+const PDFViewer = ({ paper, fileUrl, onClose, user, customSubjects = [] }) => {
   const [showCaptureModal, setShowCaptureModal] = useState(false);
   const [captureForm, setCaptureForm] = useState({
     file: null,
@@ -362,6 +362,15 @@ const PDFViewer = ({ paper, fileUrl, onClose, user }) => {
                   {SUBJECTS.map((subject) => (
                     <option key={subject} value={subject}>
                       {subject}
+                    </option>
+                  ))}
+                  {/* Custom subjects saved by user */}
+                  {customSubjects.length > 0 && (
+                    <option disabled className="text-gray-400">── My Subjects ──</option>
+                  )}
+                  {customSubjects.map((cs) => (
+                    <option key={`custom-${cs.id}`} value={cs.name}>
+                      {cs.name}
                     </option>
                   ))}
                 </select>

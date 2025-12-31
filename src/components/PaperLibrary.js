@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { getAllPapers, uploadPaper, downloadPaper, openPracticeMode } from '../services/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getAllPapers, uploadPaper, downloadPaper, openPracticeMode, getCustomSubjects } from '../services/api';
 import { Upload, Download, Eye, FileText, User, Calendar, BookOpen, AlertCircle } from 'lucide-react';
 import PDFViewer from './PDFViewer';
 
@@ -33,6 +33,23 @@ const PaperLibrary = ({ user }) => {
   // PDF Viewer state
   const [viewingPaper, setViewingPaper] = useState(null);
   const [pdfUrl, setPdfUrl] = useState(null);
+
+  // Custom subjects state
+  const [customSubjects, setCustomSubjects] = useState([]);
+
+  // Load custom subjects on mount
+  const loadCustomSubjects = useCallback(async () => {
+    try {
+      const subjects = await getCustomSubjects();
+      setCustomSubjects(subjects);
+    } catch (err) {
+      console.error('Failed to load custom subjects:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCustomSubjects();
+  }, [loadCustomSubjects]);
 
   useEffect(() => {
     loadPapers();
@@ -205,6 +222,13 @@ const PaperLibrary = ({ user }) => {
               {SUBJECTS.map((subject) => (
                 <option key={subject} value={subject}>{subject}</option>
               ))}
+              {/* Custom subjects saved by user */}
+              {customSubjects.length > 0 && (
+                <option disabled className="text-gray-400">── My Subjects ──</option>
+              )}
+              {customSubjects.map((cs) => (
+                <option key={`custom-${cs.id}`} value={cs.name}>{cs.name}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -374,6 +398,13 @@ const PaperLibrary = ({ user }) => {
                   {SUBJECTS.map((subject) => (
                     <option key={subject} value={subject}>{subject}</option>
                   ))}
+                  {/* Custom subjects saved by user */}
+                  {customSubjects.length > 0 && (
+                    <option disabled className="text-gray-400">── My Subjects ──</option>
+                  )}
+                  {customSubjects.map((cs) => (
+                    <option key={`custom-${cs.id}`} value={cs.name}>{cs.name}</option>
+                  ))}
                 </select>
               </div>
 
@@ -459,6 +490,7 @@ const PaperLibrary = ({ user }) => {
           fileUrl={pdfUrl}
           onClose={handleClosePDFViewer}
           user={user}
+          customSubjects={customSubjects}
         />
       )}
     </div>

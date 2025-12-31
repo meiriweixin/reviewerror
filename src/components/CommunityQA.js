@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { getQAQuestions } from '../services/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getQAQuestions, getCustomSubjects } from '../services/api';
 import QuestionCard from './qa/QuestionCard';
 import AskQuestionModal from './qa/AskQuestionModal';
 import QuestionDetailModal from './qa/QuestionDetailModal';
@@ -27,6 +27,21 @@ const CommunityQA = ({ user }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [customSubjects, setCustomSubjects] = useState([]);
+
+  // Load custom subjects on mount
+  const loadCustomSubjects = useCallback(async () => {
+    try {
+      const subjects = await getCustomSubjects();
+      setCustomSubjects(subjects);
+    } catch (err) {
+      console.error('Failed to load custom subjects:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCustomSubjects();
+  }, [loadCustomSubjects]);
 
   useEffect(() => {
     setPage(0);
@@ -151,6 +166,13 @@ const CommunityQA = ({ user }) => {
             {SUBJECTS.map((subject) => (
               <option key={subject} value={subject}>{subject}</option>
             ))}
+            {/* Custom subjects saved by user */}
+            {customSubjects.length > 0 && (
+              <option disabled className="text-gray-400">── My Subjects ──</option>
+            )}
+            {customSubjects.map((cs) => (
+              <option key={`custom-${cs.id}`} value={cs.name}>{cs.name}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -252,6 +274,7 @@ const CommunityQA = ({ user }) => {
           user={user}
           onClose={() => setShowAskModal(false)}
           onQuestionCreated={handleQuestionCreated}
+          customSubjects={customSubjects}
         />
       )}
 

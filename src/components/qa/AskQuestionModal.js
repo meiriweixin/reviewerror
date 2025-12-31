@@ -41,7 +41,7 @@ const BOUNTY_PRESETS = [
   { value: 'custom', label: 'Custom' }
 ];
 
-const AskQuestionModal = ({ user, onClose, onQuestionCreated }) => {
+const AskQuestionModal = ({ user, onClose, onQuestionCreated, customSubjects = [] }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [subject, setSubject] = useState('');
@@ -342,6 +342,13 @@ const AskQuestionModal = ({ user, onClose, onQuestionCreated }) => {
                 <option value="">Select a subject</option>
                 {SUBJECTS.map((s) => (
                   <option key={s} value={s}>{s}</option>
+                ))}
+                {/* Custom subjects saved by user */}
+                {customSubjects.length > 0 && (
+                  <option disabled className="text-gray-400">── My Subjects ──</option>
+                )}
+                {customSubjects.map((cs) => (
+                  <option key={`custom-${cs.id}`} value={cs.name}>{cs.name}</option>
                 ))}
               </select>
             </div>
