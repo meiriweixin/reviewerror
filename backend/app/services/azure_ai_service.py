@@ -6,12 +6,54 @@ import json
 
 class AzureAIService:
     def __init__(self):
-        self.client = AzureOpenAI(
+        # GPT-4o client (always available)
+        self.gpt4o_client = AzureOpenAI(
             api_key=settings.AZURE_OPENAI_API_KEY,
             api_version=settings.AZURE_OPENAI_API_VERSION,
             azure_endpoint=settings.AZURE_OPENAI_ENDPOINT
         )
-        self.deployment_name = settings.AZURE_OPENAI_DEPLOYMENT_NAME
+        self.gpt4o_deployment = settings.AZURE_OPENAI_DEPLOYMENT_NAME
+
+        # GPT-5 Chat client (optional - only if configured)
+        self.gpt5_available = all([
+            settings.AZURE_OPENAI_GPT5_ENDPOINT,
+            settings.AZURE_OPENAI_GPT5_API_KEY,
+            settings.AZURE_OPENAI_GPT5_DEPLOYMENT_NAME,
+            settings.AZURE_OPENAI_GPT5_API_VERSION
+        ])
+
+        if self.gpt5_available:
+            self.gpt5_client = AzureOpenAI(
+                api_key=settings.AZURE_OPENAI_GPT5_API_KEY,
+                api_version=settings.AZURE_OPENAI_GPT5_API_VERSION,
+                azure_endpoint=settings.AZURE_OPENAI_GPT5_ENDPOINT
+            )
+            self.gpt5_deployment = settings.AZURE_OPENAI_GPT5_DEPLOYMENT_NAME
+            print("✅ GPT-5 Chat model configured and available")
+        else:
+            self.gpt5_client = None
+            self.gpt5_deployment = None
+            print("⚠️  GPT-5 Chat not configured - will fall back to GPT-4o")
+
+    def get_client_and_deployment(self, model: str = "gpt-4o"):
+        """
+        Get the appropriate client and deployment name based on model choice
+
+        Args:
+            model: Either "gpt-4o" or "gpt-5-chat" (default: "gpt-5-chat")
+
+        Returns:
+            Tuple of (client, deployment_name)
+        """
+        # If GPT-5 requested but not available, fall back to GPT-4o
+        if model == "gpt-5-chat" and not self.gpt5_available:
+            print(f"⚠️  GPT-5 requested but not configured, falling back to GPT-4o")
+            return self.gpt4o_client, self.gpt4o_deployment
+
+        if model == "gpt-4o":
+            return self.gpt4o_client, self.gpt4o_deployment
+        else:
+            return self.gpt5_client, self.gpt5_deployment
 
     def encode_image(self, image_path: str) -> str:
         """Encode image to base64"""
@@ -22,7 +64,8 @@ class AzureAIService:
         self,
         image_path: str,
         subject: str,
-        wrong_only: bool = True
+        wrong_only: bool = True,
+        model: str = "gpt-4o"
     ) -> Dict[str, Any]:
         """
         Analyze question paper image to extract questions
@@ -32,6 +75,7 @@ class AzureAIService:
             subject: The subject of the exam
             wrong_only: If True, extract only wrongly answered questions (default).
                        If False, extract ALL questions from the image.
+            model: AI model to use - "gpt-4o" (default) or "gpt-5-chat"
 
         Returns:
             Dict containing:
@@ -118,9 +162,12 @@ IMPORTANT:
 
 Return ONLY valid JSON, no additional text."""
 
-            # Call Azure OpenAI GPT-4o Vision
-            response = self.client.chat.completions.create(
-                model=self.deployment_name,
+            # Get appropriate client and deployment based on model choice
+            client, deployment = self.get_client_and_deployment(model)
+
+            # Call Azure OpenAI Vision API
+            response = client.chat.completions.create(
+                model=deployment,
                 messages=[
                     {
                         "role": "user",
@@ -211,10 +258,17 @@ Return ONLY valid JSON, no additional text."""
         self,
         question_text: str,
         subject: str,
-        grade: Optional[str] = None
+        grade: Optional[str] = None,
+        model: str = "gpt-4o"
     ) -> tuple[str, Dict[str, int]]:
         """
         Generate an explanation/solution for a question
+
+        Args:
+            question_text: The question to explain
+            subject: The subject of the question
+            grade: Optional grade level
+            model: AI model to use - "gpt-4o" (default) or "gpt-5-chat"
 
         Returns:
             Tuple of (explanation text, token_usage dict)
@@ -258,8 +312,11 @@ STRICT RULES:
 - NEVER use parentheses () for math, ALWAYS use $...$
 - Show mathematical working clearly"""
 
-            response = self.client.chat.completions.create(
-                model=self.deployment_name,
+            # Get appropriate client and deployment based on model choice
+            client, deployment = self.get_client_and_deployment(model)
+
+            response = client.chat.completions.create(
+                model=deployment,
                 messages=[
                     {"role": "system", "content": "You are a tutor. Output ONLY structured markdown with headers, bullet points, and numbered lists. NEVER write paragraphs. Use $...$ for ALL mathematical expressions. Be concise."},
                     {"role": "user", "content": prompt}
@@ -284,7 +341,8 @@ STRICT RULES:
         self,
         question_text: str,
         subject: str,
-        grade: Optional[str] = None
+        grade: Optional[str] = None,
+        model: str = "gpt-4o"
     ) -> tuple[List[str], Dict[str, int]]:
         """
         Generate 3 similar practice questions based on the original question
@@ -311,8 +369,11 @@ REQUIREMENTS:
 
 Output ONLY the 3 numbered questions, nothing else."""
 
-            response = self.client.chat.completions.create(
-                model=self.deployment_name,
+            # Get appropriate client and deployment based on model choice
+            client, deployment = self.get_client_and_deployment(model)
+
+            response = client.chat.completions.create(
+                model=deployment,
                 messages=[
                     {"role": "system", "content": "You are an expert educational question generator. Create practice questions that help students master concepts through varied practice."},
                     {"role": "user", "content": prompt}

@@ -93,11 +93,15 @@ async def upload_question_paper(
             total_completion_tokens = 0
             total_tokens = 0
 
-            # Analyze image with Azure GPT-4o Vision (using temp file)
+            # Get user's preferred model (default to gpt-5-chat if not set)
+            user_model = current_user.get('preferred_model', 'gpt-4o')
+
+            # Analyze image with Azure AI Vision (using temp file)
             analysis_result = await azure_ai_service.analyze_question_paper(
                 temp_file_path,
                 subject,
-                wrong_only=extract_wrong_only
+                wrong_only=extract_wrong_only,
+                model=user_model
             )
 
             # Track tokens from image analysis
@@ -116,11 +120,12 @@ async def upload_question_paper(
                 if not question_text:
                     continue
 
-                # Generate AI explanation
+                # Generate AI explanation using user's preferred model
                 explanation, explain_tokens = await azure_ai_service.explain_question(
                     question_text,
                     subject,
-                    grade or current_user.get('grade')
+                    grade or current_user.get('grade'),
+                    model=user_model
                 )
 
                 # Track explanation tokens
@@ -286,10 +291,14 @@ async def capture_question_from_paper(
         explanation = None
         if note:
             try:
+                # Get user's preferred model
+                user_model = current_user.get('preferred_model', 'gpt-4o')
+
                 explanation, tokens_used = await azure_ai_service.explain_question(
                     question_text,
                     subject,
-                    grade or current_user.get('grade')
+                    grade or current_user.get('grade'),
+                    model=user_model
                 )
                 total_prompt_tokens += tokens_used.get("prompt_tokens", 0)
                 total_completion_tokens += tokens_used.get("completion_tokens", 0)
@@ -451,11 +460,15 @@ async def regenerate_explanation(
         )
 
     try:
-        # Generate new explanation
+        # Get user's preferred model
+        user_model = current_user.get('preferred_model', 'gpt-5-chat')
+
+        # Generate new explanation using user's preferred model
         new_explanation, tokens_used = await azure_ai_service.explain_question(
             question.get('question_text'),
             question.get('subject'),
-            question.get('grade')
+            question.get('grade'),
+            model=user_model
         )
 
         # Update question with new explanation
@@ -498,11 +511,15 @@ async def generate_similar_questions(
         )
 
     try:
-        # Generate similar questions
+        # Get user's preferred model
+        user_model = current_user.get('preferred_model', 'gpt-5-chat')
+
+        # Generate similar questions using user's preferred model
         similar_questions, tokens_used = await azure_ai_service.generate_similar_questions(
             question.get('question_text'),
             question.get('subject'),
-            question.get('grade')
+            question.get('grade'),
+            model=user_model
         )
 
         # Track token usage

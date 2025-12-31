@@ -44,6 +44,11 @@ export const updateUserGrade = async (grade) => {
   return response.data;
 };
 
+export const updateUserModel = async (preferredModel) => {
+  const response = await api.put('/auth/model', { preferred_model: preferredModel });
+  return response.data;
+};
+
 // Question APIs
 export const uploadImage = async (file, subject, grade, category = '', wrongOnly = true) => {
   const formData = new FormData();

@@ -20,6 +20,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     grade: Optional[str] = None
+    preferred_model: Optional[str] = None
 
 class UserResponse(UserBase):
     id: int
@@ -27,6 +28,7 @@ class UserResponse(UserBase):
     profile_picture: Optional[str] = None
     is_admin: Optional[bool] = False
     credits: Optional[int] = 5
+    preferred_model: Optional[str] = "gpt-4o"
     created_at: datetime
 
     class Config:
@@ -43,6 +45,9 @@ class TokenResponse(BaseModel):
 
 class GradeUpdateRequest(BaseModel):
     grade: str
+
+class ModelUpdateRequest(BaseModel):
+    preferred_model: str
 
 # Question Schemas
 class QuestionBase(BaseModel):

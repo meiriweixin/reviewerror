@@ -10,7 +10,8 @@ from app.schemas import (
     GoogleLoginRequest,
     TokenResponse,
     UserResponse,
-    GradeUpdateRequest
+    GradeUpdateRequest,
+    ModelUpdateRequest
 )
 from app.config import settings
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -150,6 +151,26 @@ async def update_grade(
     updated_user = await supabase_db.update_user_grade(
         user_id=current_user['id'],
         grade=request.grade
+    )
+
+    return UserResponse(**updated_user)
+
+@router.put("/model", response_model=UserResponse)
+async def update_preferred_model(
+    request: ModelUpdateRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Update user's preferred AI model (gpt-4o or gpt-5-chat)"""
+    # Validate model choice
+    if request.preferred_model not in ["gpt-4o", "gpt-5-chat"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid model. Must be 'gpt-4o' or 'gpt-5-chat'"
+        )
+
+    updated_user = await supabase_db.update_user(
+        user_id=current_user['id'],
+        preferred_model=request.preferred_model
     )
 
     return UserResponse(**updated_user)

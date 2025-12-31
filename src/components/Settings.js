@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { updateUserGrade } from '../services/api';
+import { updateUserGrade, updateUserModel } from '../services/api';
 
 const GRADE_OPTIONS = [
   { value: 'p1', label: 'Primary 1' },
@@ -20,10 +20,18 @@ const GRADE_OPTIONS = [
   { value: 'uni4', label: 'University Year 4' },
 ];
 
+const MODEL_OPTIONS = [
+  { value: 'gpt-4o', label: 'GPT-4o (Default)', description: 'Reliable vision and reasoning model' },
+  { value: 'gpt-5-chat', label: 'GPT-5 Chat', description: 'Latest model with advanced reasoning (if configured)' },
+];
+
 const Settings = ({ user }) => {
   const [grade, setGrade] = useState(user?.grade || '');
+  const [preferredModel, setPreferredModel] = useState(user?.preferred_model || 'gpt-4o');
   const [saving, setSaving] = useState(false);
+  const [savingModel, setSavingModel] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [modelMessage, setModelMessage] = useState({ type: '', text: '' });
 
   const handleSaveGrade = async (e) => {
     e.preventDefault();
@@ -40,6 +48,24 @@ const Settings = ({ user }) => {
       setMessage({ type: 'error', text: 'Failed to update grade. Please try again.' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveModel = async (e) => {
+    e.preventDefault();
+    setSavingModel(true);
+    setModelMessage({ type: '', text: '' });
+
+    try {
+      await updateUserModel(preferredModel);
+      setModelMessage({ type: 'success', text: 'AI model updated successfully! Refreshing page...' });
+      // Reload page to update user data across all components
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+      console.error('Failed to update model:', error);
+      setModelMessage({ type: 'error', text: 'Failed to update AI model. Please try again.' });
+    } finally {
+      setSavingModel(false);
     }
   };
 
@@ -119,6 +145,69 @@ const Settings = ({ user }) => {
         </form>
       </div>
 
+      {/* AI Model Preferences */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Model Preferences</h3>
+
+        {modelMessage.text && (
+          <div className={`mb-4 p-4 rounded-2xl ${
+            modelMessage.type === 'success'
+              ? 'bg-green-50 border border-green-200 text-green-700'
+              : 'bg-red-50 border border-red-200 text-red-700'
+          }`}>
+            <p className="text-sm">{modelMessage.text}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSaveModel}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Preferred AI Model for Explanations and Image Analysis
+            </label>
+            <p className="text-xs text-gray-500 mb-3">
+              Choose which AI model generates explanations and analyzes your uploaded question papers.
+            </p>
+
+            <div className="space-y-3">
+              {MODEL_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className={`flex items-start p-4 border-2 rounded-2xl cursor-pointer transition-all ${
+                    preferredModel === option.value
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="model"
+                    value={option.value}
+                    checked={preferredModel === option.value}
+                    onChange={(e) => setPreferredModel(e.target.value)}
+                    className="mt-1 mr-3"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{option.label}</div>
+                    <div className="text-sm text-gray-600 mt-1">{option.description}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={savingModel || !preferredModel}
+            className="px-6 py-2 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {savingModel ? 'Saving...' : 'Save AI Model'}
+          </button>
+          <p className="mt-3 text-sm text-gray-500">
+            Note: The selected model will be used for all future image analyses and explanation generations.
+          </p>
+        </form>
+      </div>
+
       {/* App Information */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">About</h3>
@@ -130,7 +219,7 @@ const Settings = ({ user }) => {
             <span className="font-medium text-gray-900">Description:</span> AI-powered Student Review App helps you track and master wrongly answered questions across all subjects.
           </p>
           <p>
-            <span className="font-medium text-gray-900">Technology:</span> Built with React, FastAPI, and Azure OpenAI GPT-4o Vision
+            <span className="font-medium text-gray-900">Technology:</span> Built with React, FastAPI, and Azure OpenAI (GPT-5 Chat & GPT-4o)
           </p>
         </div>
 
