@@ -21,8 +21,8 @@ const GRADE_OPTIONS = [
 ];
 
 const MODEL_OPTIONS = [
-  { value: 'gpt-4o', label: 'GPT-4o (Default)', description: 'Reliable vision and reasoning model' },
-  { value: 'gpt-5-chat', label: 'GPT-5 Chat', description: 'Latest model with advanced reasoning (if configured)' },
+  { value: 'gpt-4o', label: 'GPT-4o', description: 'Reliable vision and reasoning model (always available)' },
+  { value: 'gpt-5-chat', label: 'GPT-5 Chat (Default)', description: 'Latest model with advanced reasoning (auto-falls back to GPT-4o if not configured)' },
 ];
 
 const Settings = ({ user }) => {
