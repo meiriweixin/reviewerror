@@ -215,6 +215,49 @@ class SupabaseDBService:
 
         return result.data if result.data else []
 
+    # ==================== CUSTOM SUBJECTS OPERATIONS ====================
+
+    async def get_custom_subjects(self, user_id: int) -> List[Dict[str, Any]]:
+        """Get all custom subjects for a user"""
+        result = self.client.table("study_custom_subjects")\
+            .select("*")\
+            .eq("user_id", user_id)\
+            .order("name")\
+            .execute()
+
+        return result.data if result.data else []
+
+    async def create_custom_subject(self, user_id: int, name: str) -> Dict[str, Any]:
+        """Create a new custom subject for a user"""
+        data = {
+            "user_id": user_id,
+            "name": name.strip(),
+            "created_at": datetime.utcnow().isoformat()
+        }
+
+        result = self.client.table("study_custom_subjects").insert(data).execute()
+        return result.data[0] if result.data else None
+
+    async def get_custom_subject_by_name(self, user_id: int, name: str) -> Optional[Dict[str, Any]]:
+        """Check if a custom subject already exists for user"""
+        result = self.client.table("study_custom_subjects")\
+            .select("*")\
+            .eq("user_id", user_id)\
+            .eq("name", name.strip())\
+            .execute()
+
+        return result.data[0] if result.data else None
+
+    async def delete_custom_subject(self, subject_id: int, user_id: int) -> bool:
+        """Delete a custom subject (only if owned by user)"""
+        result = self.client.table("study_custom_subjects")\
+            .delete()\
+            .eq("id", subject_id)\
+            .eq("user_id", user_id)\
+            .execute()
+
+        return len(result.data) > 0
+
     # ==================== QUESTION OPERATIONS ====================
 
     async def create_question(

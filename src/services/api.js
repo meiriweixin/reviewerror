@@ -344,4 +344,21 @@ export const deleteQAComment = async (commentId) => {
   return response.data;
 };
 
+// ============= Custom Subjects APIs =============
+
+export const getCustomSubjects = async () => {
+  const response = await api.get('/subjects/custom');
+  return response.data;
+};
+
+export const createCustomSubject = async (name) => {
+  const response = await api.post('/subjects/custom', { name });
+  return response.data;
+};
+
+export const deleteCustomSubject = async (subjectId) => {
+  const response = await api.delete(`/subjects/custom/${subjectId}`);
+  return response.data;
+};
+
 export default api;

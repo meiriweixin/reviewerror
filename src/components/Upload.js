@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { uploadImage } from '../services/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { uploadImage, getCustomSubjects, createCustomSubject, deleteCustomSubject } from '../services/api';
 
 const SUBJECTS = [
   'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Chinese',
@@ -32,6 +32,59 @@ const Upload = ({ user }) => {
   const [success, setSuccess] = useState('');
   const [uploadProgress, setUploadProgress] = useState(null);
   const [wrongOnly, setWrongOnly] = useState(true); // Default: extract only wrong questions
+  const [customSubjects, setCustomSubjects] = useState([]); // User's saved custom subjects
+  const [savingSubject, setSavingSubject] = useState(false);
+
+  // Load custom subjects on mount
+  const loadCustomSubjects = useCallback(async () => {
+    try {
+      const subjects = await getCustomSubjects();
+      setCustomSubjects(subjects);
+    } catch (err) {
+      console.error('Failed to load custom subjects:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCustomSubjects();
+  }, [loadCustomSubjects]);
+
+  // Save custom subject to database
+  const handleSaveCustomSubject = async () => {
+    if (!customSubject.trim()) return;
+
+    setSavingSubject(true);
+    try {
+      await createCustomSubject(customSubject.trim());
+      await loadCustomSubjects(); // Refresh the list
+      setSubject(customSubject.trim()); // Switch to the newly created subject
+      setCustomSubject(''); // Clear the input
+      setSuccess('Custom subject saved!');
+      setTimeout(() => setSuccess(''), 2000);
+    } catch (err) {
+      if (err.response?.data?.detail === 'Subject already exists') {
+        setError('This subject already exists');
+      } else {
+        setError('Failed to save custom subject');
+      }
+    } finally {
+      setSavingSubject(false);
+    }
+  };
+
+  // Delete custom subject
+  const handleDeleteCustomSubject = async (subjectId, subjectName) => {
+    try {
+      await deleteCustomSubject(subjectId);
+      await loadCustomSubjects(); // Refresh the list
+      // If the deleted subject was selected, reset selection
+      if (subject === subjectName) {
+        setSubject('');
+      }
+    } catch (err) {
+      setError('Failed to delete subject');
+    }
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -213,20 +266,68 @@ const Upload = ({ user }) => {
                 {SUBJECTS.map((sub) => (
                   <option key={sub} value={sub} className="text-gray-900">{sub}</option>
                 ))}
-                <option value="custom" className="text-gray-900">✏️ Custom...</option>
+                {/* Custom subjects saved by user */}
+                {customSubjects.length > 0 && (
+                  <option disabled className="text-gray-400">── My Subjects ──</option>
+                )}
+                {customSubjects.map((cs) => (
+                  <option key={`custom-${cs.id}`} value={cs.name} className="text-gray-900">
+                    {cs.name}
+                  </option>
+                ))}
+                <option value="custom" className="text-gray-900">➕ Add New Subject...</option>
               </select>
 
-              {/* Custom Subject Input - shows when "Custom..." is selected */}
+              {/* Custom subjects with delete buttons */}
+              {customSubjects.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {customSubjects.map((cs) => (
+                    <span
+                      key={cs.id}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs"
+                    >
+                      {cs.name}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCustomSubject(cs.id, cs.name)}
+                        className="text-blue-400 hover:text-red-500 transition-colors"
+                        title="Delete subject"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Custom Subject Input - shows when "Add New Subject..." is selected */}
               {subject === 'custom' && (
-                <div className="mt-3">
+                <div className="mt-3 flex gap-2">
                   <input
                     type="text"
                     value={customSubject}
                     onChange={(e) => setCustomSubject(e.target.value)}
-                    placeholder="Enter custom subject (e.g., Psychology)"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSaveCustomSubject();
+                      }
+                    }}
+                    placeholder="Enter subject name (e.g., Psychology)"
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                     maxLength={50}
+                    autoFocus
                   />
+                  <button
+                    type="button"
+                    onClick={handleSaveCustomSubject}
+                    disabled={!customSubject.trim() || savingSubject}
+                    className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {savingSubject ? '...' : 'Save'}
+                  </button>
                 </div>
               )}
             </div>
@@ -244,17 +345,21 @@ const Upload = ({ user }) => {
                     setCustomCategory('');
                   }
                 }}
-                disabled={!subject || !CATEGORY_OPTIONS[subject] || CATEGORY_OPTIONS[subject].length === 0}
+                disabled={!subject || subject === 'custom' || (!CATEGORY_OPTIONS[subject] && !customSubjects.find(cs => cs.name === subject))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="" className="text-gray-900">
-                  {!subject ? 'Select subject first' : 'Select category'}
+                  {!subject ? 'Select subject first' : subject === 'custom' ? 'Save subject first' : 'Select category (optional)'}
                 </option>
-                {subject && CATEGORY_OPTIONS[subject]?.map((cat) => (
+                {subject && subject !== 'custom' && CATEGORY_OPTIONS[subject]?.map((cat) => (
                   <option key={cat} value={cat} className="text-gray-900">{cat}</option>
                 ))}
-                {subject && CATEGORY_OPTIONS[subject] && CATEGORY_OPTIONS[subject].length > 0 && (
+                {subject && subject !== 'custom' && (CATEGORY_OPTIONS[subject]?.length > 0 || customSubjects.find(cs => cs.name === subject)) && (
                   <option value="custom" className="text-gray-900">✏️ Custom...</option>
+                )}
+                {/* For custom subjects, allow custom category */}
+                {subject && subject !== 'custom' && !CATEGORY_OPTIONS[subject] && customSubjects.find(cs => cs.name === subject) && (
+                  <option value="custom" className="text-gray-900">✏️ Add Category...</option>
                 )}
               </select>
             </div>
