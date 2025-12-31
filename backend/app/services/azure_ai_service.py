@@ -338,6 +338,241 @@ STRICT RULES:
             print(f"Error generating explanation: {e}")
             return "Unable to generate explanation at this time.", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
+    def _get_diagram_guidance(self, subject: str) -> str:
+        """Return subject-specific Mermaid diagram guidance."""
+
+        guidance = {
+            'Physics': """PHYSICS DIAGRAM STYLES:
+
+For CIRCUITS (Electricity):
+- Use ((circle)) for bulbs/lamps, [rectangle] for batteries/power sources
+- Series circuit: components in a line
+- Parallel circuit: branches from power source
+- Include switch as {{diamond}} shape when relevant
+
+Series Circuit Example:
+graph LR
+    BAT[Battery +] --> S{{Switch}}
+    S --> L1((Bulb 1))
+    L1 --> L2((Bulb 2))
+    L2 --> L3((Bulb 3))
+    L3 --> BAT2[Battery -]
+
+Parallel Circuit Example:
+graph TD
+    subgraph Power
+        BAT[Battery]
+    end
+    BAT --> L1((Bulb 1))
+    BAT --> L2((Bulb 2))
+    BAT --> L3((Bulb 3))
+    L1 --> GND[Ground]
+    L2 --> GND
+    L3 --> GND
+
+For MECHANICS (Forces/Motion):
+- Use arrows to show force directions
+- Label forces clearly (F, mg, N, f)
+
+Force Diagram Example:
+graph TD
+    subgraph Object
+        OBJ[Block]
+    end
+    UP[N: Normal] --> OBJ
+    OBJ --> DOWN[mg: Weight]
+    LEFT[f: Friction] --> OBJ
+    OBJ --> RIGHT[F: Applied]
+
+For OPTICS (Light/Mirrors/Lenses):
+graph LR
+    SRC[Light Source] --> |ray| M[Mirror/Lens]
+    M --> |reflected| IMG[Image]""",
+
+            'Chemistry': """CHEMISTRY DIAGRAM STYLES:
+
+For REACTIONS:
+graph LR
+    subgraph Reactants
+        A[H2]
+        B[O2]
+    end
+    A --> |combine| C[Reaction]
+    B --> C
+    C --> D[H2O]
+
+For STATES OF MATTER:
+graph TD
+    SOLID[Solid] --> |melting| LIQUID[Liquid]
+    LIQUID --> |freezing| SOLID
+    LIQUID --> |evaporation| GAS[Gas]
+    GAS --> |condensation| LIQUID
+
+For ATOMIC STRUCTURE:
+graph TD
+    subgraph Atom
+        N[Nucleus: p+ n]
+    end
+    E1((e-)) --> N
+    E2((e-)) --> N
+    E3((e-)) --> N""",
+
+            'Biology': """BIOLOGY DIAGRAM STYLES:
+
+For CELL PROCESSES:
+graph LR
+    subgraph Cell
+        A[Input] --> B[Process]
+        B --> C[Output]
+    end
+
+For FOOD CHAINS/WEBS:
+graph LR
+    SUN[Sun] --> P[Producer]
+    P --> H[Herbivore]
+    H --> C[Carnivore]
+    C --> D[Decomposer]
+    D --> P
+
+For BODY SYSTEMS:
+graph TD
+    HEART[Heart] --> |pumps| ART[Arteries]
+    ART --> |delivers| BODY[Body Cells]
+    BODY --> |returns| VEINS[Veins]
+    VEINS --> HEART
+
+For INHERITANCE/GENETICS:
+graph TD
+    P1[Parent Aa] --> |gametes| G1[A]
+    P1 --> G2[a]
+    P2[Parent Aa] --> G3[A]
+    P2 --> G4[a]""",
+
+            'Mathematics': """MATHEMATICS DIAGRAM STYLES:
+
+For GEOMETRY (shapes, angles):
+- Describe relationships between points/shapes
+graph TD
+    A[Point A] --- B[Point B]
+    B --- C[Point C]
+    C --- A
+
+For FUNCTIONS/MAPPINGS:
+graph LR
+    subgraph Domain
+        X1[x1]
+        X2[x2]
+    end
+    subgraph Range
+        Y1[y1]
+        Y2[y2]
+    end
+    X1 --> Y1
+    X2 --> Y2
+
+For TREE DIAGRAMS (Probability):
+graph TD
+    START[Start] --> A[Event A: 0.5]
+    START --> B[Event B: 0.5]
+    A --> A1[A1: 0.3]
+    A --> A2[A2: 0.7]
+    B --> B1[B1: 0.4]
+    B --> B2[B2: 0.6]
+
+For SET DIAGRAMS:
+graph TD
+    subgraph Universal Set
+        subgraph Set A
+            A1[elem1]
+        end
+        subgraph Set B
+            B1[elem2]
+        end
+        AB[intersection]
+    end""",
+
+            'Computer Science': """COMPUTER SCIENCE DIAGRAM STYLES:
+
+For ALGORITHMS/FLOWCHARTS:
+graph TD
+    START([Start]) --> INPUT[/Input data/]
+    INPUT --> PROC[Process]
+    PROC --> DEC{{Decision?}}
+    DEC --> |Yes| OUT1[Output A]
+    DEC --> |No| OUT2[Output B]
+    OUT1 --> END([End])
+    OUT2 --> END
+
+For DATA STRUCTURES:
+graph LR
+    subgraph Linked List
+        N1[Node 1] --> N2[Node 2]
+        N2 --> N3[Node 3]
+        N3 --> NULL[null]
+    end
+
+For NETWORKS:
+graph TD
+    CLIENT[Client] --> |request| SERVER[Server]
+    SERVER --> |response| CLIENT
+    SERVER --> DB[(Database)]""",
+
+            'Geography': """GEOGRAPHY DIAGRAM STYLES:
+
+For WATER CYCLE:
+graph TD
+    OCEAN[Ocean] --> |evaporation| CLOUD[Clouds]
+    CLOUD --> |condensation| RAIN[Precipitation]
+    RAIN --> |runoff| RIVER[Rivers]
+    RIVER --> OCEAN
+    RAIN --> |infiltration| GROUND[Groundwater]
+
+For PLATE TECTONICS:
+graph LR
+    P1[Plate A] --> |convergent| MOUNT[Mountains]
+    P2[Plate B] --> MOUNT
+
+For ECOSYSTEMS:
+graph TD
+    SUN[Sun Energy] --> PROD[Producers]
+    PROD --> CONS1[Primary Consumers]
+    CONS1 --> CONS2[Secondary Consumers]""",
+
+            'Economics': """ECONOMICS DIAGRAM STYLES:
+
+For CIRCULAR FLOW:
+graph LR
+    HH[Households] --> |labor| FIRMS[Firms]
+    FIRMS --> |wages| HH
+    FIRMS --> |goods| HH
+    HH --> |spending| FIRMS
+
+For SUPPLY/DEMAND:
+graph TD
+    HIGH[High Price] --> LS[Low Demand]
+    HIGH --> HS[High Supply]
+    LOW[Low Price] --> HD[High Demand]
+    LOW --> LD[Low Supply]
+    EQ{{Equilibrium}} --> HIGH
+    EQ --> LOW
+
+For TRADE:
+graph LR
+    C1[Country A] --> |exports| C2[Country B]
+    C2 --> |imports| C1"""
+        }
+
+        return guidance.get(subject, """GENERAL DIAGRAM STYLE:
+graph TD
+    A[Input/Start] --> B[Process/Middle]
+    B --> C[Output/End]
+
+Use appropriate shapes:
+- [Rectangle] for general items
+- ((Circle)) for important nodes
+- {{Diamond}} for decisions
+- ([Stadium]) for start/end""")
+
     def _clean_mermaid_code(self, code: str) -> Optional[str]:
         """Clean and validate Mermaid diagram code."""
         if not code or not isinstance(code, str):
@@ -402,6 +637,9 @@ STRICT RULES:
                 language_instruction = "IMPORTANT: Generate all questions in English only."
 
             if include_diagrams:
+                # Build subject-specific diagram guidance
+                diagram_guidance = self._get_diagram_guidance(subject)
+
                 prompt = f"""Based on this {subject} question{grade_context}:
 
 "{question_text}"
@@ -417,31 +655,19 @@ REQUIREMENTS:
 4. Questions should be clearly distinct from each other
 5. Keep each question concise and clear
 
-FOR EACH QUESTION, decide if a DIAGRAM would help visualize the concept:
-- For circuits, processes, relationships: Use Mermaid flowchart
-- For hierarchies: Use Mermaid graph
-- If no diagram needed or question is purely calculation: set diagram to null
+DIAGRAM INSTRUCTIONS:
+For each question, generate a Mermaid.js diagram that visually represents the problem.
+- Use ONLY English labels in diagrams (no Chinese characters)
+- Keep labels SHORT (1-3 words max)
 
-CRITICAL MERMAID SYNTAX RULES (MUST FOLLOW EXACTLY):
-1. Start with: graph LR or graph TD (LR=left-right, TD=top-down)
-2. Use ONLY English labels, no Chinese characters in diagrams
-3. Node format: A[Label] or A((Circle)) or A{{Diamond}}
-4. Arrow format: A --> B or A --- B
-5. Use newlines between statements, NOT semicolons
-6. Keep labels SHORT (1-3 words max)
-7. Maximum 6 nodes per diagram
-
-VALID MERMAID EXAMPLES:
-- Circuit: graph LR\n    L1[L1] --> L2[L2]\n    L2 --> L3[L3]
-- Parallel circuit: graph TD\n    S[Source] --> L1[L1]\n    S --> L2[L2]
-- Process: graph LR\n    A[Input] --> B[Process] --> C[Output]
+{diagram_guidance}
 
 Return your response as a JSON object with this EXACT structure:
 {{
     "questions": [
         {{
             "text": "Full question text here",
-            "diagram": "graph LR\\n    A[L1] --> B[L2]\\n    B --> C[L3]"
+            "diagram": "graph LR\\n    A[Node] --> B[Node]"
         }},
         {{
             "text": "Second question text",
@@ -449,7 +675,7 @@ Return your response as a JSON object with this EXACT structure:
         }},
         {{
             "text": "Third question text",
-            "diagram": "graph TD\\n    S[Power] --> L1[Bulb1]\\n    S --> L2[Bulb2]"
+            "diagram": "graph TD\\n    A[Node] --> B[Node]"
         }}
     ]
 }}

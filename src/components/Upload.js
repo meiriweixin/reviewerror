@@ -183,72 +183,68 @@ const Upload = ({ user }) => {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Subject Selection */}
+        {/* Subject & Category Selection - Side by Side */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
-            Subject *
-          </label>
-          <select
-            value={subject}
-            onChange={(e) => handleSubjectChange(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-            required
-          >
-            <option value="" className="text-gray-900">Select a subject</option>
-            {SUBJECTS.map((sub) => (
-              <option key={sub} value={sub} className="text-gray-900">{sub}</option>
-            ))}
-          </select>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Subject */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Subject *
+              </label>
+              <select
+                value={subject}
+                onChange={(e) => handleSubjectChange(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                required
+              >
+                <option value="" className="text-gray-900">Select a subject</option>
+                {SUBJECTS.map((sub) => (
+                  <option key={sub} value={sub} className="text-gray-900">{sub}</option>
+                ))}
+              </select>
+            </div>
 
-        {/* Category Selection */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
-            Category <span className="text-gray-400 font-normal">(Optional)</span>
-          </label>
-          <select
-            value={category}
-            onChange={(e) => {
-              setCategory(e.target.value);
-              if (e.target.value !== 'custom') {
-                setCustomCategory(''); // Clear custom input when switching away from custom
-              }
-            }}
-            disabled={!subject || !CATEGORY_OPTIONS[subject] || CATEGORY_OPTIONS[subject].length === 0}
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <option value="" className="text-gray-900">
-              {!subject ? 'Select a subject first' : 'Select a category (optional)'}
-            </option>
-            {subject && CATEGORY_OPTIONS[subject]?.map((cat) => (
-              <option key={cat} value={cat} className="text-gray-900">{cat}</option>
-            ))}
-            {subject && CATEGORY_OPTIONS[subject] && CATEGORY_OPTIONS[subject].length > 0 && (
-              <option value="custom" className="text-gray-900">✏️ Custom...</option>
-            )}
-          </select>
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Category <span className="text-gray-400 font-normal">(Optional)</span>
+              </label>
+              <select
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                  if (e.target.value !== 'custom') {
+                    setCustomCategory('');
+                  }
+                }}
+                disabled={!subject || !CATEGORY_OPTIONS[subject] || CATEGORY_OPTIONS[subject].length === 0}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="" className="text-gray-900">
+                  {!subject ? 'Select subject first' : 'Select category'}
+                </option>
+                {subject && CATEGORY_OPTIONS[subject]?.map((cat) => (
+                  <option key={cat} value={cat} className="text-gray-900">{cat}</option>
+                ))}
+                {subject && CATEGORY_OPTIONS[subject] && CATEGORY_OPTIONS[subject].length > 0 && (
+                  <option value="custom" className="text-gray-900">✏️ Custom...</option>
+                )}
+              </select>
+            </div>
+          </div>
 
           {/* Custom Category Input - shows when "Custom..." is selected */}
           {category === 'custom' && (
-            <div className="mt-3">
+            <div className="mt-4">
               <input
                 type="text"
                 value={customCategory}
                 onChange={(e) => setCustomCategory(e.target.value)}
-                placeholder="Enter your custom category (e.g., Linear Equations, Quadratic Functions)"
+                placeholder="Enter custom category (e.g., Linear Equations)"
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                 maxLength={50}
               />
-              <p className="text-xs text-gray-500 mt-2">
-                Create your own category for better organization
-              </p>
             </div>
-          )}
-
-          {subject && CATEGORY_OPTIONS[subject] && CATEGORY_OPTIONS[subject].length > 0 && category !== 'custom' && (
-            <p className="text-xs text-gray-500 mt-2">
-              Help organize questions by topic for easier filtering and review
-            </p>
           )}
         </div>
 
@@ -283,7 +279,7 @@ const Upload = ({ user }) => {
             <div
               onDrop={handleDrop}
               onDragOver={handleDragOver}
-              className="border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center hover:border-blue-400 transition-colors cursor-pointer"
+              className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
             >
               <input
                 type="file"
@@ -293,14 +289,22 @@ const Upload = ({ user }) => {
                 id="file-upload"
               />
               <label htmlFor="file-upload" className="cursor-pointer">
-                <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                <svg className="mx-auto h-10 w-10 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                   <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
                 <p className="mt-2 text-sm text-gray-600">
-                  <span className="font-semibold text-blue-600">Click</span>, Drag & Drop, or <span className="font-semibold text-blue-600">Paste Image</span>
+                  <span className="font-semibold text-blue-600">Click</span>, Drag & Drop, or <span className="font-semibold text-blue-600">Paste</span> (Ctrl+V)
                 </p>
-                <p className="text-xs text-gray-500 mt-1">PNG, JPG, JPEG up to 10MB • Press Ctrl+V (Cmd+V) to paste</p>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, JPEG up to 10MB</p>
               </label>
+
+              {/* Tips inside upload area */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  💡 <span className="font-medium">Tips:</span> Clear, well-lit image • One page at a time
+                  {wrongOnly && ' • Ensure ✓ and ✗ marks are visible'}
+                </p>
+              </div>
             </div>
           ) : (
             <div className="relative">
@@ -346,22 +350,6 @@ const Upload = ({ user }) => {
           {loading ? 'Processing...' : wrongOnly ? 'Analyze & Extract Wrong Questions' : 'Analyze & Extract All Questions'}
         </button>
       </form>
-
-      {/* Info Box */}
-      <div className="mt-8 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-2xl p-6">
-        <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2 flex items-center gap-2">
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
-          </svg>
-          Tips for best results
-        </h3>
-        <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1 ml-7">
-          <li>• Ensure the image is clear and well-lit</li>
-          {wrongOnly && <li>• Make sure check marks (✓) and crosses (✗) are visible</li>}
-          <li>• Upload one page at a time for better accuracy</li>
-          <li>• Supported formats: PNG, JPG, JPEG</li>
-        </ul>
-      </div>
     </div>
   );
 };
