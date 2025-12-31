@@ -22,6 +22,7 @@ const Upload = ({ user }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [subject, setSubject] = useState('');
+  const [customSubject, setCustomSubject] = useState('');
   const [category, setCategory] = useState('');
   const [customCategory, setCustomCategory] = useState('');
   // eslint-disable-next-line no-unused-vars
@@ -60,6 +61,9 @@ const Upload = ({ user }) => {
   // Handle subject change - reset category when subject changes
   const handleSubjectChange = (newSubject) => {
     setSubject(newSubject);
+    if (newSubject !== 'custom') {
+      setCustomSubject(''); // Clear custom subject when switching away
+    }
     setCategory(''); // Reset category when subject changes
     setCustomCategory(''); // Reset custom category when subject changes
   };
@@ -77,6 +81,12 @@ const Upload = ({ user }) => {
       return;
     }
 
+    // Validate custom subject if "custom" is selected
+    if (subject === 'custom' && !customSubject.trim()) {
+      setError('Please enter a custom subject');
+      return;
+    }
+
     // Validate custom category if "custom" is selected
     if (category === 'custom' && !customCategory.trim()) {
       setError('Please enter a custom category');
@@ -91,10 +101,11 @@ const Upload = ({ user }) => {
     try {
       setUploadProgress({ status: 'Analyzing image with AI...', percent: 60 });
 
-      // Use custom category if "custom" is selected, otherwise use selected category
+      // Use custom values if "custom" is selected
+      const finalSubject = subject === 'custom' ? customSubject.trim() : subject;
       const finalCategory = category === 'custom' ? customCategory.trim() : category;
 
-      const result = await uploadImage(selectedFile, subject, grade, finalCategory, wrongOnly);
+      const result = await uploadImage(selectedFile, finalSubject, grade, finalCategory, wrongOnly);
 
       setUploadProgress({ status: wrongOnly ? 'Extracting wrong questions...' : 'Extracting all questions...', percent: 90 });
 
@@ -104,6 +115,7 @@ const Upload = ({ user }) => {
         setSelectedFile(null);
         setPreview(null);
         setSubject('');
+        setCustomSubject('');
         setCategory('');
         setCustomCategory('');
         setLoading(false);
@@ -201,7 +213,22 @@ const Upload = ({ user }) => {
                 {SUBJECTS.map((sub) => (
                   <option key={sub} value={sub} className="text-gray-900">{sub}</option>
                 ))}
+                <option value="custom" className="text-gray-900">✏️ Custom...</option>
               </select>
+
+              {/* Custom Subject Input - shows when "Custom..." is selected */}
+              {subject === 'custom' && (
+                <div className="mt-3">
+                  <input
+                    type="text"
+                    value={customSubject}
+                    onChange={(e) => setCustomSubject(e.target.value)}
+                    placeholder="Enter custom subject (e.g., Psychology)"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
+                    maxLength={50}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Category */}
