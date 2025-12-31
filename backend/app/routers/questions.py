@@ -551,7 +551,7 @@ async def update_question_status(
     update: QuestionUpdate,
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Update question status (pending, reviewing, understood)"""
+    """Update question status, explanation, or notes"""
     question = await supabase_db.get_question_by_id(question_id)
 
     if not question or question.get('user_id') != current_user['id']:
@@ -566,6 +566,8 @@ async def update_question_status(
         update_data['status'] = update.status
     if update.explanation:
         update_data['explanation'] = update.explanation
+    if update.user_notes is not None:  # Allow empty string to clear notes
+        update_data['user_notes'] = update.user_notes
 
     # Update question
     updated_question = await supabase_db.update_question(question_id, **update_data)

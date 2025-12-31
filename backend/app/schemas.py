@@ -66,6 +66,7 @@ class QuestionCreate(QuestionBase):
 class QuestionUpdate(BaseModel):
     status: Optional[QuestionStatus] = None
     explanation: Optional[str] = None
+    user_notes: Optional[str] = None
 
 class QuestionResponse(QuestionBase):
     id: int
@@ -73,6 +74,7 @@ class QuestionResponse(QuestionBase):
     image_url: Optional[str] = None
     image_snippet_url: Optional[str] = None
     explanation: Optional[str] = None
+    user_notes: Optional[str] = None
     status: QuestionStatus
     created_at: datetime
     updated_at: datetime

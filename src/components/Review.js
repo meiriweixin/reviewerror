@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { getWrongQuestions, updateQuestionStatus, searchQuestions, deleteQuestion, regenerateExplanation, getSimilarQuestions } from '../services/api';
+import { getWrongQuestions, updateQuestionStatus, updateQuestionNotes, searchQuestions, deleteQuestion, regenerateExplanation, getSimilarQuestions } from '../services/api';
 
 // Subject list (same as Upload.js)
 const SUBJECTS = [
@@ -61,6 +61,9 @@ const Review = ({ user }) => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [similarQuestions, setSimilarQuestions] = useState({}); // { questionId: [q1, q2, q3] }
   const [loadingSimilar, setLoadingSimilar] = useState(null); // questionId currently loading
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesText, setNotesText] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   // Watch for user.grade changes and update filters
   useEffect(() => {
@@ -178,6 +181,35 @@ const Review = ({ user }) => {
     } finally {
       setLoadingSimilar(null);
     }
+  };
+
+  const handleSaveNotes = async () => {
+    if (!selectedQuestion) return;
+    setSavingNotes(true);
+    try {
+      const updatedQuestion = await updateQuestionNotes(selectedQuestion.id, notesText);
+      // Update local state
+      setQuestions(questions.map(q =>
+        q.id === selectedQuestion.id ? { ...q, user_notes: notesText } : q
+      ));
+      setSelectedQuestion({ ...selectedQuestion, user_notes: notesText });
+      setEditingNotes(false);
+    } catch (error) {
+      console.error('Failed to save notes:', error);
+      alert('Failed to save notes. Please try again.');
+    } finally {
+      setSavingNotes(false);
+    }
+  };
+
+  const handleStartEditNotes = () => {
+    setNotesText(selectedQuestion?.user_notes || '');
+    setEditingNotes(true);
+  };
+
+  const handleCancelEditNotes = () => {
+    setEditingNotes(false);
+    setNotesText('');
   };
 
   const getStatusBadge = (status) => {
@@ -403,7 +435,7 @@ const Review = ({ user }) => {
 
       {/* Question Detail Modal */}
       {selectedQuestion && (
-        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center p-4 z-50" onClick={() => setSelectedQuestion(null)}>
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center p-4 z-50" onClick={() => { setSelectedQuestion(null); setEditingNotes(false); setNotesText(''); }}>
           <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-slate-700 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 p-6">
               <div className="flex justify-between items-start">
@@ -421,7 +453,7 @@ const Review = ({ user }) => {
                   </p>
                 </div>
                 <button
-                  onClick={() => setSelectedQuestion(null)}
+                  onClick={() => { setSelectedQuestion(null); setEditingNotes(false); setNotesText(''); }}
                   className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -472,6 +504,58 @@ const Review = ({ user }) => {
                   </div>
                 </div>
               )}
+
+              {/* Personal Notes Section */}
+              <div className="mb-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-semibold text-amber-900 dark:text-amber-300">My Notes:</h4>
+                  {!editingNotes && (
+                    <button
+                      onClick={handleStartEditNotes}
+                      className="px-3 py-1 text-xs bg-amber-600 dark:bg-amber-600 text-white rounded-2xl hover:bg-amber-700 dark:hover:bg-amber-700 transition-colors font-medium"
+                    >
+                      {selectedQuestion.user_notes ? 'Edit' : 'Add Note'}
+                    </button>
+                  )}
+                </div>
+
+                {editingNotes ? (
+                  <div>
+                    <textarea
+                      value={notesText}
+                      onChange={(e) => setNotesText(e.target.value)}
+                      placeholder="Add your personal notes, observations, or reminders about this question..."
+                      className="w-full px-3 py-2 border border-amber-300 dark:border-amber-700 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 resize-none"
+                      rows={4}
+                      autoFocus
+                    />
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={handleSaveNotes}
+                        disabled={savingNotes}
+                        className="px-4 py-2 text-sm bg-amber-600 dark:bg-amber-600 text-white rounded-xl hover:bg-amber-700 dark:hover:bg-amber-700 transition-colors disabled:opacity-50 font-medium"
+                      >
+                        {savingNotes ? 'Saving...' : 'Save Note'}
+                      </button>
+                      <button
+                        onClick={handleCancelEditNotes}
+                        disabled={savingNotes}
+                        className="px-4 py-2 text-sm bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {selectedQuestion.user_notes ? (
+                      <p className="text-amber-800 dark:text-amber-200 whitespace-pre-wrap">{selectedQuestion.user_notes}</p>
+                    ) : (
+                      <p className="text-amber-600/60 dark:text-amber-400/60 italic">No notes yet. Click "Add Note" to add your personal observations.</p>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="flex gap-3 mb-4">
                 <button

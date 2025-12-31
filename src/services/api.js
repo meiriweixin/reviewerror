@@ -91,6 +91,11 @@ export const updateQuestionStatus = async (questionId, status) => {
   return response.data;
 };
 
+export const updateQuestionNotes = async (questionId, notes) => {
+  const response = await api.put(`/questions/${questionId}/status`, { user_notes: notes });
+  return response.data;
+};
+
 export const searchQuestions = async (query) => {
   const response = await api.post('/questions/search', { query });
   return response.data;
