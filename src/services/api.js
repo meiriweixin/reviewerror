@@ -361,4 +361,35 @@ export const deleteCustomSubject = async (subjectId) => {
   return response.data;
 };
 
+// ============= Notification APIs =============
+
+export const getNotifications = async (unreadOnly = false, limit = 50) => {
+  const params = new URLSearchParams();
+  if (unreadOnly) params.append('unread_only', 'true');
+  if (limit) params.append('limit', limit.toString());
+
+  const response = await api.get(`/notifications?${params.toString()}`);
+  return response.data;
+};
+
+export const getUnreadNotificationCount = async () => {
+  const response = await api.get('/notifications/unread-count');
+  return response.data;
+};
+
+export const markNotificationRead = async (notificationId) => {
+  const response = await api.put(`/notifications/${notificationId}/read`);
+  return response.data;
+};
+
+export const markAllNotificationsRead = async () => {
+  const response = await api.put('/notifications/read-all');
+  return response.data;
+};
+
+export const deleteNotification = async (notificationId) => {
+  const response = await api.delete(`/notifications/${notificationId}`);
+  return response.data;
+};
+
 export default api;

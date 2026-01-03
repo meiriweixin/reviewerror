@@ -16,7 +16,11 @@ import {
   Users,
   Library,
   Coins,
-  MessageCircle
+  MessageCircle,
+  Trash2,
+  X,
+  Check,
+  Loader2
 } from 'lucide-react';
 import Upload from './Upload';
 import Review from './Review';
@@ -26,11 +30,35 @@ import Usage from './Usage';
 import User from './User';
 import PaperLibrary from './PaperLibrary';
 import CommunityQA from './CommunityQA';
-import { updateUserGrade } from '../services/api';
+import {
+  updateUserGrade,
+  getNotifications,
+  getUnreadNotificationCount,
+  markNotificationRead,
+  markAllNotificationsRead,
+  deleteNotification
+} from '../services/api';
 
 interface DashboardProps {
   user: any;
   onLogout: () => void;
+}
+
+interface Notification {
+  id: number;
+  user_id: number;
+  type: string;
+  title: string;
+  message: string;
+  question_id?: number;
+  upload_id?: number;
+  is_read: boolean;
+  priority: string;
+  notification_data?: Record<string, any>;
+  action_url?: string;
+  action_label?: string;
+  created_at: string;
+  expires_at?: string;
 }
 
 const GRADE_OPTIONS = [
@@ -67,6 +95,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showGradeDropdown, setShowGradeDropdown] = useState(false);
   const [currentGrade, setCurrentGrade] = useState(user?.grade || '');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   // Persist dark mode preference and apply to document
   useEffect(() => {
@@ -147,6 +178,113 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
     return gradeMap[grade.toLowerCase()] || grade.toUpperCase();
   };
+
+  // Format notification time (e.g., "2h ago", "3d ago")
+  const formatNotificationTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  // Load notifications
+  const loadNotifications = async () => {
+    if (!user) return;
+
+    setLoadingNotifications(true);
+    try {
+      const [notifResponse, countResponse] = await Promise.all([
+        getNotifications(false, 50),
+        getUnreadNotificationCount()
+      ]);
+      setNotifications(notifResponse.notifications || []);
+      setUnreadCount(countResponse.count || 0);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  // Handle notification click - mark as read and navigate if action_url exists
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.is_read) {
+      try {
+        await markNotificationRead(notification.id);
+        setNotifications(prev =>
+          prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } catch (error) {
+        console.error('Failed to mark notification as read:', error);
+      }
+    }
+
+    // Navigate if action_url exists
+    if (notification.action_url) {
+      // Parse action_url - it may be like "/review?status=pending"
+      const url = new URL(notification.action_url, window.location.origin);
+      const path = url.pathname;
+
+      // Map paths to tabs
+      if (path.includes('/review')) {
+        setActiveTab('review');
+      } else if (path.includes('/upload')) {
+        setActiveTab('upload');
+      } else if (path.includes('/progress')) {
+        setActiveTab('progress');
+      }
+      setShowNotifications(false);
+    }
+  };
+
+  // Handle mark all as read
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+    }
+  };
+
+  // Handle delete notification
+  const handleDeleteNotification = async (e: React.MouseEvent, notificationId: number) => {
+    e.stopPropagation();
+    try {
+      await deleteNotification(notificationId);
+      const deletedNotif = notifications.find(n => n.id === notificationId);
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      if (deletedNotif && !deletedNotif.is_read) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Failed to delete notification:', error);
+    }
+  };
+
+  // Load notifications on mount when user exists
+  useEffect(() => {
+    if (user) {
+      loadNotifications();
+    }
+  }, [user]);
+
+  // Reload notifications when dropdown opens
+  useEffect(() => {
+    if (showNotifications && user) {
+      loadNotifications();
+    }
+  }, [showNotifications]);
 
   // Check if current user is admin
   const isAdmin = user?.is_admin === true;
@@ -381,18 +519,100 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     className="relative p-2 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                   >
                     <Bell className="h-5 w-5" />
-                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
                   </button>
 
                   {/* Notifications Dropdown */}
                   {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
-                      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-[480px] flex flex-col">
+                      {/* Header */}
+                      <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0">
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
+                        <div className="flex items-center gap-2">
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={handleMarkAllRead}
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1"
+                            >
+                              <Check className="h-3 w-3" />
+                              Mark all read
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setShowNotifications(false)}
+                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                        <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No new notifications</p>
+
+                      {/* Notification List */}
+                      <div className="overflow-y-auto flex-1">
+                        {loadingNotifications ? (
+                          <div className="p-8 text-center">
+                            <Loader2 className="h-6 w-6 mx-auto animate-spin text-blue-500" />
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Loading...</p>
+                          </div>
+                        ) : notifications.length === 0 ? (
+                          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                            <Bell className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                            <p className="text-sm font-medium">No notifications</p>
+                            <p className="text-xs mt-1 opacity-75">You're all caught up!</p>
+                          </div>
+                        ) : (
+                          notifications.map(notification => (
+                            <div
+                              key={notification.id}
+                              onClick={() => handleNotificationClick(notification)}
+                              className={`p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
+                                !notification.is_read ? 'bg-blue-50/50 dark:bg-blue-900/20' : ''
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                {/* Unread indicator */}
+                                <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
+                                  !notification.is_read ? 'bg-blue-500' : 'bg-transparent'
+                                }`} />
+
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className={`text-sm ${!notification.is_read ? 'font-semibold' : 'font-medium'} text-gray-900 dark:text-gray-100 truncate`}>
+                                      {notification.title}
+                                    </p>
+                                    <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap shrink-0">
+                                      {formatNotificationTime(notification.created_at)}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
+                                    {notification.message}
+                                  </p>
+
+                                  {/* Action button and delete */}
+                                  <div className="flex items-center justify-between mt-2">
+                                    {notification.action_label && notification.action_url && (
+                                      <button className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+                                        {notification.action_label}
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={(e) => handleDeleteNotification(e, notification.id)}
+                                      className="ml-auto p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                                      title="Delete notification"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   )}

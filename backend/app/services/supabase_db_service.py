@@ -5,7 +5,7 @@ Handles all CRUD operations for users, questions, and upload_history
 """
 
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.config import settings
 from supabase import create_client, Client
 
@@ -1236,6 +1236,284 @@ class SupabaseDBService:
             .eq("question_id", question_id)\
             .eq("status", "active")\
             .execute()
+
+    # ==================== NOTIFICATION OPERATIONS ====================
+
+    async def create_notification(
+        self,
+        user_id: int,
+        notification_type: str,
+        title: str,
+        message: str,
+        question_id: Optional[int] = None,
+        upload_id: Optional[int] = None,
+        priority: str = "normal",
+        notification_data: Optional[Dict] = None,
+        action_url: Optional[str] = None,
+        action_label: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a new notification for a user
+
+        Args:
+            user_id: User ID
+            notification_type: 'upload_complete', 'review_due'
+            title: Notification title
+            message: Notification message
+            question_id: Optional related question ID
+            upload_id: Optional related upload ID
+            priority: 'low', 'normal', 'high'
+            notification_data: Additional JSON metadata
+            action_url: Deep link URL (e.g., "/review?question=123")
+            action_label: Button text (e.g., "Review Now")
+        """
+        expires_at = (datetime.utcnow() + timedelta(days=30)).isoformat()
+
+        data = {
+            "user_id": user_id,
+            "type": notification_type,
+            "title": title,
+            "message": message,
+            "question_id": question_id,
+            "upload_id": upload_id,
+            "priority": priority,
+            "notification_data": notification_data or {},
+            "action_url": action_url,
+            "action_label": action_label,
+            "is_read": False,
+            "created_at": datetime.utcnow().isoformat(),
+            "expires_at": expires_at
+        }
+
+        result = self.client.table("study_notifications").insert(data).execute()
+        return result.data[0] if result.data else None
+
+    async def get_user_notifications(
+        self,
+        user_id: int,
+        unread_only: bool = False,
+        limit: Optional[int] = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Get notifications for a user
+
+        Args:
+            user_id: User ID
+            unread_only: If True, only return unread notifications
+            limit: Maximum number of notifications to return
+        """
+        # Clean up expired notifications first
+        await self.cleanup_expired_notifications()
+
+        query = self.client.table("study_notifications")\
+            .select("*")\
+            .eq("user_id", user_id)\
+            .order("created_at", desc=True)
+
+        if unread_only:
+            query = query.eq("is_read", False)
+
+        if limit:
+            query = query.limit(limit)
+
+        result = query.execute()
+        return result.data if result.data else []
+
+    async def get_unread_count(self, user_id: int) -> int:
+        """Get count of unread notifications for badge display"""
+        result = self.client.table("study_notifications")\
+            .select("id", count="exact")\
+            .eq("user_id", user_id)\
+            .eq("is_read", False)\
+            .execute()
+
+        return result.count if result.count else 0
+
+    async def mark_notification_read(self, notification_id: int, user_id: int) -> Dict[str, Any]:
+        """Mark a notification as read (verify ownership)"""
+        result = self.client.table("study_notifications")\
+            .update({"is_read": True})\
+            .eq("id", notification_id)\
+            .eq("user_id", user_id)\
+            .execute()
+
+        return result.data[0] if result.data else None
+
+    async def mark_all_notifications_read(self, user_id: int) -> int:
+        """Mark all notifications as read for a user, returns count updated"""
+        result = self.client.table("study_notifications")\
+            .update({"is_read": True})\
+            .eq("user_id", user_id)\
+            .eq("is_read", False)\
+            .execute()
+
+        return len(result.data) if result.data else 0
+
+    async def delete_notification(self, notification_id: int, user_id: int) -> bool:
+        """Delete a notification (verify ownership)"""
+        result = self.client.table("study_notifications")\
+            .delete()\
+            .eq("id", notification_id)\
+            .eq("user_id", user_id)\
+            .execute()
+
+        return len(result.data) > 0
+
+    async def cleanup_expired_notifications(self) -> int:
+        """Delete notifications older than 30 days, returns count deleted"""
+        try:
+            result = self.client.table("study_notifications")\
+                .delete()\
+                .lt("expires_at", datetime.utcnow().isoformat())\
+                .execute()
+            return len(result.data) if result.data else 0
+        except Exception as e:
+            print(f"Warning: Failed to cleanup expired notifications: {e}")
+            return 0
+
+    # ==================== SPACED REPETITION OPERATIONS ====================
+
+    async def calculate_next_review_date(
+        self,
+        question_id: int,
+        performance_rating: str  # 'forgot', 'hard', 'good', 'easy'
+    ) -> Dict[str, Any]:
+        """
+        Calculate next review date using modified Anki SM-2 algorithm
+
+        Performance ratings:
+        - 'forgot': Reset to 1 day (user marked pending/reviewing after understanding)
+        - 'hard': Multiply by 1.2
+        - 'good': Multiply by ease_factor (default 2.5)
+        - 'easy': Multiply by ease_factor + 0.5
+
+        Args:
+            question_id: Question ID
+            performance_rating: User performance ('forgot', 'hard', 'good', 'easy')
+
+        Returns:
+            Updated question data with new review schedule
+        """
+        question = await self.get_question_by_id(question_id)
+        if not question:
+            raise ValueError(f"Question {question_id} not found")
+
+        current_interval = question.get('current_interval_days') or 1
+        review_count = question.get('review_count') or 0
+        ease_factor = float(question.get('ease_factor') or 2.5)
+
+        # Calculate new interval based on performance
+        if performance_rating == 'forgot':
+            new_interval = 1  # Reset to beginning
+            new_ease_factor = max(1.3, ease_factor - 0.2)  # Decrease ease but not below 1.3
+        elif performance_rating == 'hard':
+            new_interval = int(current_interval * 1.2)
+            new_ease_factor = max(1.3, ease_factor - 0.15)
+        elif performance_rating == 'good':
+            if review_count == 0:
+                new_interval = 1
+            elif review_count == 1:
+                new_interval = 3
+            else:
+                new_interval = int(current_interval * ease_factor)
+            new_ease_factor = ease_factor
+        else:  # 'easy'
+            if review_count == 0:
+                new_interval = 3
+            elif review_count == 1:
+                new_interval = 7
+            else:
+                new_interval = int(current_interval * (ease_factor + 0.5))
+            new_ease_factor = min(4.0, ease_factor + 0.15)  # Increase ease but cap at 4.0
+
+        # Cap interval at 180 days (6 months)
+        new_interval = min(new_interval, 180)
+
+        # Calculate next review date
+        next_review_date = (datetime.utcnow() + timedelta(days=new_interval)).isoformat()
+
+        # Update question
+        update_data = {
+            'last_reviewed_at': datetime.utcnow().isoformat(),
+            'review_count': review_count + 1,
+            'current_interval_days': new_interval,
+            'next_review_date': next_review_date,
+            'ease_factor': new_ease_factor
+        }
+
+        updated_question = await self.update_question(question_id, **update_data)
+        return updated_question
+
+    async def get_due_reviews(self, user_id: int, grade: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get questions that are due for review (next_review_date <= now)
+        Only includes questions with status 'reviewing' or 'understood'
+
+        Args:
+            user_id: User ID
+            grade: Optional grade filter
+
+        Returns:
+            List of questions due for review
+        """
+        query = self.client.table("study_questions")\
+            .select("*")\
+            .eq("user_id", user_id)\
+            .in_("status", ["reviewing", "understood"])\
+            .not_.is_("next_review_date", "null")\
+            .lte("next_review_date", datetime.utcnow().isoformat())\
+            .order("next_review_date", desc=False)  # Oldest due first
+
+        if grade:
+            query = query.eq("grade", grade)
+
+        result = query.execute()
+        return result.data if result.data else []
+
+    async def create_review_notifications_for_due_questions(self, user_id: int) -> int:
+        """
+        Create notifications for all questions that are due for review
+        Called when user logs in or fetches notifications
+
+        Returns:
+            Count of notifications created
+        """
+        due_questions = await self.get_due_reviews(user_id)
+        notifications_created = 0
+
+        for question in due_questions:
+            # Check if notification already exists for this question
+            existing = self.client.table("study_notifications")\
+                .select("id")\
+                .eq("user_id", user_id)\
+                .eq("type", "review_due")\
+                .eq("question_id", question['id'])\
+                .eq("is_read", False)\
+                .execute()
+
+            if existing.data:
+                continue  # Skip if notification already exists
+
+            # Create notification
+            await self.create_notification(
+                user_id=user_id,
+                notification_type="review_due",
+                title="Time to Review!",
+                message=f"Review your {question['subject']} question to reinforce learning",
+                question_id=question['id'],
+                priority="normal",
+                notification_data={
+                    "subject": question['subject'],
+                    "grade": question.get('grade'),
+                    "review_count": question.get('review_count', 0),
+                    "interval_days": question.get('current_interval_days', 1)
+                },
+                action_url=f"/review?question={question['id']}",
+                action_label="Review Now"
+            )
+            notifications_created += 1
+
+        return notifications_created
 
 
 # Create singleton instance

@@ -193,6 +193,26 @@ async def upload_question_paper(
                 except Exception as e:
                     print(f"Warning: Failed to track token usage: {e}")
 
+            # Create upload completion notification
+            try:
+                await supabase_db.create_notification(
+                    user_id=current_user['id'],
+                    notification_type="upload_complete",
+                    title="Upload Complete!",
+                    message=f"Successfully extracted {len(questions_created)} question(s) from {subject}",
+                    upload_id=upload_record['id'],
+                    priority="normal",
+                    notification_data={
+                        "questions_count": len(questions_created),
+                        "subject": subject,
+                        "filename": unique_filename
+                    },
+                    action_url="/review?status=pending",
+                    action_label="Review Questions"
+                )
+            except Exception as e:
+                print(f"Warning: Failed to create upload notification: {e}")
+
             return UploadResponse(
                 message=f"Successfully extracted {len(questions_created)} wrong question(s)",
                 questions_count=len(questions_created),
@@ -570,6 +590,44 @@ async def update_question_status(
         update_data['explanation'] = update.explanation
     if update.user_notes is not None:  # Allow empty string to clear notes
         update_data['user_notes'] = update.user_notes
+
+    # Spaced repetition: Calculate next review date based on status transition
+    if update.status:
+        old_status = question.get('status')
+        new_status = update.status
+
+        # Determine performance rating based on status transition
+        performance_rating = None
+
+        if new_status == 'understood':
+            # User marked as understood
+            if old_status == 'pending':
+                # First time understanding - rate as 'good'
+                performance_rating = 'good'
+            elif old_status == 'reviewing':
+                # Reviewing -> Understood = successful review
+                performance_rating = 'good'
+            elif old_status == 'understood':
+                # Re-confirming understanding = 'easy'
+                performance_rating = 'easy'
+
+        elif new_status == 'reviewing' and old_status == 'understood':
+            # User forgot - moving back to reviewing
+            performance_rating = 'forgot'
+
+        elif new_status == 'pending' and old_status in ['reviewing', 'understood']:
+            # User forgot completely - reset
+            performance_rating = 'forgot'
+
+        # Calculate next review date if performance rating determined
+        if performance_rating:
+            try:
+                await supabase_db.calculate_next_review_date(
+                    question_id=question_id,
+                    performance_rating=performance_rating
+                )
+            except Exception as e:
+                print(f"Warning: Failed to update spaced repetition schedule: {e}")
 
     # Update question
     updated_question = await supabase_db.update_question(question_id, **update_data)

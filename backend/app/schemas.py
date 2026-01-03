@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 from enum import Enum
 
 class QuestionStatus(str, Enum):
@@ -256,3 +256,34 @@ class QACommentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ============= NOTIFICATION SCHEMAS =============
+
+class NotificationResponse(BaseModel):
+    id: int
+    user_id: int
+    type: str
+    title: str
+    message: str
+    question_id: Optional[int] = None
+    upload_id: Optional[int] = None
+    is_read: bool
+    priority: str
+    notification_data: Optional[Dict] = None
+    action_url: Optional[str] = None
+    action_label: Optional[str] = None
+    created_at: datetime
+    expires_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationListResponse(BaseModel):
+    notifications: List[NotificationResponse]
+    total: int
+
+
+class UnreadCountResponse(BaseModel):
+    count: int
