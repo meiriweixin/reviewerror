@@ -153,6 +153,11 @@ export const getAllUsersTokenUsage = async () => {
   return response.data;
 };
 
+export const getTokenLimitStatus = async () => {
+  const response = await api.get('/usage/tokens/limit');
+  return response.data;
+};
+
 // User Management APIs (Admin only)
 export const getAllUsers = async () => {
   const response = await api.get('/users/');

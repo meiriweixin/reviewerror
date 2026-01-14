@@ -4,6 +4,7 @@ from datetime import datetime
 
 from app.services.supabase_db_service import supabase_db
 from app.routers.auth import get_current_user
+from app.schemas import TokenLimitStatusResponse
 
 router = APIRouter()
 
@@ -67,4 +68,29 @@ async def get_all_users_token_usage(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch all users token usage: {str(e)}"
+        )
+
+@router.get("/tokens/limit", response_model=TokenLimitStatusResponse)
+async def get_token_limit_status(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Get current user's monthly token limit status
+
+    Returns:
+        - monthly_limit: Monthly token limit (default 500,000)
+        - monthly_used: Tokens used this month
+        - remaining: Remaining tokens this month
+        - percentage_used: Percentage of limit used
+        - reset_date: When the monthly limit resets
+        - exceeded: Whether the limit has been exceeded
+    """
+    try:
+        limit_status = await supabase_db.get_user_token_limit_status(current_user['id'])
+        return TokenLimitStatusResponse(**limit_status)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch token limit status: {str(e)}"
         )

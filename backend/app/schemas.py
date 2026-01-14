@@ -287,3 +287,17 @@ class NotificationListResponse(BaseModel):
 
 class UnreadCountResponse(BaseModel):
     count: int
+
+
+# ============= TOKEN LIMIT SCHEMAS =============
+
+class TokenLimitStatusResponse(BaseModel):
+    monthly_limit: int
+    monthly_used: int
+    remaining: int
+    percentage_used: float
+    reset_date: Optional[datetime] = None
+    exceeded: bool
+
+    class Config:
+        from_attributes = True

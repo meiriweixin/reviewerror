@@ -93,7 +93,7 @@ class SupabaseDBService:
     async def add_token_usage(self, user_id: int, prompt_tokens: int,
                              completion_tokens: int, total_tokens: int) -> Dict[str, Any]:
         """
-        Add token usage to user's total
+        Add token usage to user's total and check monthly limit
 
         Args:
             user_id: User ID
@@ -109,16 +109,113 @@ class SupabaseDBService:
         current_total = user.get('total_tokens_used', 0) or 0
         current_prompt = user.get('prompt_tokens_used', 0) or 0
         current_completion = user.get('completion_tokens_used', 0) or 0
+        current_monthly = user.get('monthly_tokens_used', 0) or 0
+
+        # Calculate new monthly usage
+        new_monthly_usage = current_monthly + total_tokens
 
         # Update with new usage
         update_data = {
             'total_tokens_used': current_total + total_tokens,
             'prompt_tokens_used': current_prompt + prompt_tokens,
             'completion_tokens_used': current_completion + completion_tokens,
+            'monthly_tokens_used': new_monthly_usage,
             'last_token_update': datetime.utcnow().isoformat()
         }
 
-        return await self.update_user(user_id, **update_data)
+        updated_user = await self.update_user(user_id, **update_data)
+
+        # Check if monthly limit exceeded and create notification
+        await self.check_and_notify_token_limit(user_id, new_monthly_usage)
+
+        return updated_user
+
+    async def check_and_notify_token_limit(self, user_id: int, monthly_tokens_used: int) -> None:
+        """
+        Check if user has exceeded monthly token limit and create notification if needed
+
+        Args:
+            user_id: User ID
+            monthly_tokens_used: Current monthly token usage
+        """
+        try:
+            user = await self.get_user_by_id(user_id)
+            if not user:
+                return
+
+            monthly_limit = user.get('monthly_token_limit', 500000) or 500000
+
+            # Check if limit exceeded
+            if monthly_tokens_used > monthly_limit:
+                # Check if notification already exists for this month
+                existing = self.client.table("study_notifications")\
+                    .select("id")\
+                    .eq("user_id", user_id)\
+                    .eq("type", "token_limit_exceeded")\
+                    .eq("is_read", False)\
+                    .gte("created_at", user.get('token_limit_reset_date', datetime.utcnow().isoformat()))\
+                    .execute()
+
+                if not existing.data:
+                    # Create notification
+                    overage = monthly_tokens_used - monthly_limit
+                    await self.create_notification(
+                        user_id=user_id,
+                        notification_type="token_limit_exceeded",
+                        title="⚠️ Monthly Token Limit Exceeded",
+                        message=f"You have exceeded your monthly token limit of {monthly_limit:,} tokens. Current usage: {monthly_tokens_used:,} tokens (over by {overage:,} tokens).",
+                        priority="high",
+                        notification_data={
+                            "monthly_limit": monthly_limit,
+                            "monthly_usage": monthly_tokens_used,
+                            "overage": overage,
+                            "reset_date": user.get('token_limit_reset_date')
+                        },
+                        action_url="/usage",
+                        action_label="View Usage"
+                    )
+        except Exception as e:
+            # Don't fail the main operation if notification creation fails
+            print(f"Warning: Failed to check/create token limit notification: {e}")
+
+    async def get_user_token_limit_status(self, user_id: int) -> Dict[str, Any]:
+        """
+        Get user's token limit status
+
+        Returns:
+            Dict with:
+            - monthly_limit: Monthly token limit
+            - monthly_used: Tokens used this month
+            - remaining: Remaining tokens
+            - percentage_used: Percentage of limit used
+            - reset_date: When the limit resets
+            - exceeded: Whether limit is exceeded
+        """
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return {
+                'monthly_limit': 500000,
+                'monthly_used': 0,
+                'remaining': 500000,
+                'percentage_used': 0,
+                'reset_date': None,
+                'exceeded': False
+            }
+
+        monthly_limit = user.get('monthly_token_limit', 500000) or 500000
+        monthly_used = user.get('monthly_tokens_used', 0) or 0
+        remaining = max(0, monthly_limit - monthly_used)
+        percentage_used = (monthly_used / monthly_limit * 100) if monthly_limit > 0 else 0
+        exceeded = monthly_used > monthly_limit
+
+        return {
+            'monthly_limit': monthly_limit,
+            'monthly_used': monthly_used,
+            'remaining': remaining,
+            'percentage_used': round(percentage_used, 2),
+            'reset_date': user.get('token_limit_reset_date'),
+            'exceeded': exceeded
+        }
 
     async def get_user_token_usage(self, user_id: int) -> Dict[str, Any]:
         """

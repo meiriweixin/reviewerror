@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { getAllUsersTokenUsage } from '../services/api';
+import { getAllUsersTokenUsage, getTokenLimitStatus } from '../services/api';
 
 const Usage = ({ user }) => {
   const [usage, setUsage] = useState(null);
+  const [limitStatus, setLimitStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -14,8 +15,12 @@ const Usage = ({ user }) => {
     try {
       setLoading(true);
       setError('');
-      const data = await getAllUsersTokenUsage();
-      setUsage(data);
+      const [usageData, limitData] = await Promise.all([
+        getAllUsersTokenUsage(),
+        getTokenLimitStatus()
+      ]);
+      setUsage(usageData);
+      setLimitStatus(limitData);
     } catch (err) {
       console.error('Error loading token usage:', err);
       setError('Failed to load token usage data');
@@ -29,7 +34,7 @@ const Usage = ({ user }) => {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'Never';
+    if (!dateString) return 'Not set';
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
@@ -80,6 +85,80 @@ const Usage = ({ user }) => {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">System-Wide Token Usage</h1>
         <p className="text-gray-600">Total AI token consumption across all {usage?.total_users || 0} users</p>
       </div>
+
+      {/* Monthly Limit Status Card */}
+      {limitStatus && (
+        <div className={`mb-8 rounded-2xl p-6 shadow-lg border-2 ${
+          limitStatus.exceeded
+            ? 'bg-red-50 border-red-300'
+            : limitStatus.percentage_used >= 80
+            ? 'bg-yellow-50 border-yellow-300'
+            : 'bg-green-50 border-green-300'
+        }`}>
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 mb-1 flex items-center">
+                {limitStatus.exceeded && (
+                  <svg className="w-6 h-6 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                )}
+                Your Monthly Token Limit
+              </h2>
+              <p className="text-sm text-gray-600">
+                {limitStatus.exceeded
+                  ? 'You have exceeded your monthly token limit!'
+                  : `${formatNumber(limitStatus.remaining)} tokens remaining this month`
+                }
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-gray-900">
+                {formatNumber(limitStatus.monthly_used)} / {formatNumber(limitStatus.monthly_limit)}
+              </div>
+              <div className="text-sm text-gray-600 mt-1">
+                {limitStatus.percentage_used.toFixed(1)}% used
+              </div>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-4 mb-3 overflow-hidden">
+            <div
+              className={`h-full transition-all duration-500 ${
+                limitStatus.exceeded
+                  ? 'bg-red-500'
+                  : limitStatus.percentage_used >= 80
+                  ? 'bg-yellow-500'
+                  : 'bg-green-500'
+              }`}
+              style={{ width: `${Math.min(limitStatus.percentage_used, 100)}%` }}
+            />
+          </div>
+
+          {/* Reset Date */}
+          <div className="text-xs text-gray-600">
+            Limit resets on: <span className="font-semibold">{formatDate(limitStatus.reset_date)}</span>
+          </div>
+
+          {/* Warning Messages */}
+          {limitStatus.exceeded && (
+            <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
+              <p className="text-sm text-red-800 font-medium">
+                ⚠️ You have exceeded your monthly limit by {formatNumber(limitStatus.monthly_used - limitStatus.monthly_limit)} tokens.
+                Please contact your administrator or wait until the limit resets.
+              </p>
+            </div>
+          )}
+          {!limitStatus.exceeded && limitStatus.percentage_used >= 80 && (
+            <div className="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+              <p className="text-sm text-yellow-800 font-medium">
+                ⚠️ You are approaching your monthly token limit. Please use tokens wisely.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Stats Cards - System-Wide Totals */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
