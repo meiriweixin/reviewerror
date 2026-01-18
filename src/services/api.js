@@ -111,6 +111,11 @@ export const regenerateExplanation = async (questionId) => {
   return response.data;
 };
 
+export const submitExplanationFeedback = async (questionId, feedback) => {
+  const response = await api.post(`/questions/${questionId}/feedback`, { feedback });
+  return response.data;
+};
+
 export const getSimilarQuestions = async (questionId) => {
   const response = await api.post(`/questions/${questionId}/similar`);
   return response.data;

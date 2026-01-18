@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { getWrongQuestions, updateQuestionStatus, updateQuestionNotes, searchQuestions, deleteQuestion, regenerateExplanation, getSimilarQuestions, getCustomSubjects } from '../services/api';
+import { getWrongQuestions, updateQuestionStatus, updateQuestionNotes, searchQuestions, deleteQuestion, regenerateExplanation, submitExplanationFeedback, getSimilarQuestions, getCustomSubjects } from '../services/api';
 import MermaidDiagram from './MermaidDiagram';
 
 // Subject list (same as Upload.js)
@@ -66,6 +66,9 @@ const Review = ({ user }) => {
   const [notesText, setNotesText] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [customSubjects, setCustomSubjects] = useState([]);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   // Load custom subjects on mount
   const loadCustomSubjects = useCallback(async () => {
@@ -229,6 +232,32 @@ const Review = ({ user }) => {
   const handleCancelEditNotes = () => {
     setEditingNotes(false);
     setNotesText('');
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!selectedQuestion || !feedbackText.trim()) return;
+    setSubmittingFeedback(true);
+    try {
+      const updatedQuestion = await submitExplanationFeedback(selectedQuestion.id, feedbackText);
+      // Update local state
+      setQuestions(questions.map(q =>
+        q.id === selectedQuestion.id ? updatedQuestion : q
+      ));
+      setSelectedQuestion(updatedQuestion);
+      // Reset feedback form
+      setShowFeedback(false);
+      setFeedbackText('');
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+      alert('Failed to regenerate explanation with feedback. Please try again.');
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
+
+  const handleCancelFeedback = () => {
+    setShowFeedback(false);
+    setFeedbackText('');
   };
 
   const getStatusBadge = (status) => {
@@ -468,7 +497,7 @@ const Review = ({ user }) => {
 
       {/* Question Detail Modal */}
       {selectedQuestion && (
-        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center p-4 z-50" onClick={() => { setSelectedQuestion(null); setEditingNotes(false); setNotesText(''); }}>
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center p-4 z-50" onClick={() => { setSelectedQuestion(null); setEditingNotes(false); setNotesText(''); setShowFeedback(false); setFeedbackText(''); }}>
           <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-slate-700 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 p-6">
               <div className="flex justify-between items-start">
@@ -486,7 +515,7 @@ const Review = ({ user }) => {
                   </p>
                 </div>
                 <button
-                  onClick={() => { setSelectedQuestion(null); setEditingNotes(false); setNotesText(''); }}
+                  onClick={() => { setSelectedQuestion(null); setEditingNotes(false); setNotesText(''); setShowFeedback(false); setFeedbackText(''); }}
                   className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -519,14 +548,57 @@ const Review = ({ user }) => {
                 <div className="mb-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-2xl p-4">
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="font-semibold text-blue-900 dark:text-blue-300">AI Explanation:</h4>
-                    <button
-                      onClick={() => handleRegenerateExplanation(selectedQuestion.id)}
-                      disabled={updating}
-                      className="px-3 py-1 text-xs bg-blue-600 dark:bg-blue-600 text-white rounded-2xl hover:bg-blue-700 dark:hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                    >
-                      {updating ? 'Regenerating...' : 'Regenerate'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowFeedback(!showFeedback)}
+                        disabled={updating || submittingFeedback}
+                        className="px-3 py-1 text-xs bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 rounded-2xl hover:bg-orange-200 dark:hover:bg-orange-900/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                      >
+                        {showFeedback ? 'Cancel Feedback' : 'Report Error'}
+                      </button>
+                      <button
+                        onClick={() => handleRegenerateExplanation(selectedQuestion.id)}
+                        disabled={updating || submittingFeedback}
+                        className="px-3 py-1 text-xs bg-blue-600 dark:bg-blue-600 text-white rounded-2xl hover:bg-blue-700 dark:hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                      >
+                        {updating ? 'Regenerating...' : 'Regenerate'}
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Feedback Form */}
+                  {showFeedback && (
+                    <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-xl">
+                      <p className="text-sm text-orange-800 dark:text-orange-200 mb-2">
+                        What's wrong with this explanation? The AI will use your feedback to generate a corrected explanation.
+                      </p>
+                      <textarea
+                        value={feedbackText}
+                        onChange={(e) => setFeedbackText(e.target.value)}
+                        placeholder="e.g., 'The calculation in step 2 is wrong. 5 + 3 = 8, not 9.' or 'The formula used is incorrect, it should be A = πr² not A = 2πr'"
+                        className="w-full px-3 py-2 border border-orange-300 dark:border-orange-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 resize-none text-sm"
+                        rows={3}
+                        autoFocus
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={handleSubmitFeedback}
+                          disabled={submittingFeedback || !feedbackText.trim()}
+                          className="px-4 py-2 text-sm bg-orange-600 dark:bg-orange-600 text-white rounded-xl hover:bg-orange-700 dark:hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                        >
+                          {submittingFeedback ? 'Correcting...' : 'Submit & Correct'}
+                        </button>
+                        <button
+                          onClick={handleCancelFeedback}
+                          disabled={submittingFeedback}
+                          className="px-4 py-2 text-sm bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="prose prose-sm max-w-none prose-headings:text-blue-900 dark:prose-headings:text-blue-300 prose-h2:text-base prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h2:first:mt-0 prose-p:text-blue-800 dark:prose-p:text-blue-200 prose-p:my-2 prose-li:text-blue-800 dark:prose-li:text-blue-200 prose-li:my-1 prose-ul:my-2 prose-ul:ml-4 prose-ol:my-2 prose-ol:ml-4 prose-strong:text-blue-900 dark:prose-strong:text-blue-100">
                     <ReactMarkdown
                       remarkPlugins={[remarkMath]}

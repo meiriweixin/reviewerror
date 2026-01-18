@@ -516,6 +516,71 @@ async def regenerate_explanation(
             detail=f"Failed to regenerate explanation: {str(e)}"
         )
 
+@router.post("/{question_id}/feedback", response_model=QuestionResponse)
+async def submit_explanation_feedback(
+    question_id: int,
+    feedback_data: Dict[str, str],
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Submit feedback about an AI explanation and regenerate with corrections.
+
+    The feedback helps the AI understand what was wrong and generate a corrected explanation.
+    """
+    question = await supabase_db.get_question_by_id(question_id)
+
+    if not question or question.get('user_id') != current_user['id']:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question not found"
+        )
+
+    feedback = feedback_data.get('feedback', '').strip()
+    if not feedback:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Feedback text is required"
+        )
+
+    try:
+        # Get user's preferred model
+        user_model = current_user.get('preferred_model', 'gpt-4o')
+
+        # Generate corrected explanation using user's feedback
+        corrected_explanation, tokens_used = await azure_ai_service.regenerate_with_feedback(
+            question_text=question.get('question_text'),
+            current_explanation=question.get('explanation', ''),
+            feedback=feedback,
+            subject=question.get('subject'),
+            grade=question.get('grade'),
+            model=user_model
+        )
+
+        # Update question with corrected explanation
+        updated_question = await supabase_db.update_question(
+            question_id,
+            explanation=corrected_explanation
+        )
+
+        # Track token usage
+        try:
+            await supabase_db.add_token_usage(
+                user_id=current_user['id'],
+                prompt_tokens=tokens_used.get("prompt_tokens", 0),
+                completion_tokens=tokens_used.get("completion_tokens", 0),
+                total_tokens=tokens_used.get("total_tokens", 0)
+            )
+        except Exception as e:
+            print(f"Warning: Failed to track token usage: {e}")
+
+        return QuestionResponse(**updated_question)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to regenerate explanation with feedback: {str(e)}"
+        )
+
 @router.post("/{question_id}/similar")
 async def generate_similar_questions(
     question_id: int,

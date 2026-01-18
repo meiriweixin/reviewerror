@@ -604,6 +604,107 @@ Use appropriate shapes:
 
         return code
 
+    async def regenerate_with_feedback(
+        self,
+        question_text: str,
+        current_explanation: str,
+        feedback: str,
+        subject: str,
+        grade: Optional[str] = None,
+        model: str = "gpt-4o"
+    ) -> tuple[str, Dict[str, int]]:
+        """
+        Regenerate an explanation based on user feedback about what was wrong.
+
+        Args:
+            question_text: The original question
+            current_explanation: The current AI explanation that user found incorrect
+            feedback: User's feedback describing what was wrong or needs correction
+            subject: The subject of the question
+            grade: Optional grade level
+            model: AI model to use - "gpt-4o" (default) or "gpt-5-chat"
+
+        Returns:
+            Tuple of (corrected explanation text, token_usage dict)
+        """
+        try:
+            grade_context = f" for {grade} level" if grade else ""
+
+            prompt = f"""Original Question: {question_text}
+
+Subject: {subject}{grade_context}
+
+Previous AI Explanation:
+{current_explanation}
+
+Student Feedback (what was wrong with the explanation):
+{feedback}
+
+TASK: Generate a CORRECTED explanation that addresses the student's feedback.
+- Carefully analyze what the student said was wrong
+- Fix any errors in the previous explanation
+- Make sure the new explanation is accurate and addresses the feedback
+- If the student pointed out a calculation error, correct it
+- If the student said a concept was explained incorrectly, fix it
+
+Output format - YOU MUST USE EXACTLY THIS STRUCTURE (copy it exactly):
+
+## Question
+Write ONE sentence restating the question.
+
+## Key ideas
+- First key concept or formula
+- Second key concept or formula
+- Third key concept (if needed)
+
+## Step-by-step solution
+1. First step - show the calculation
+2. Second step - show the calculation
+3. Third step - show the calculation
+(Continue numbering until complete)
+
+## Final answer
+The final answer in a box or clear statement
+
+STRICT RULES:
+- DO NOT write paragraphs or long text
+- DO NOT add extra sections
+- ONLY use bullet points under "Key ideas"
+- ONLY use numbered list under "Step-by-step solution"
+- Keep each line SHORT (max 15 words)
+- CRITICAL: Use $...$ for ALL math (variables, numbers, equations)
+- Example: "Let $x = 5$" NOT "Let x = 5" or "Let ( x = 5 )"
+- Example: "Calculate $92 - y$" NOT "Calculate ( 92 - y )"
+- Example: "$y \\geq 19.2$" NOT "( y >= 19.2 )"
+- NEVER use parentheses () for math, ALWAYS use $...$
+- Show mathematical working clearly
+- MAKE SURE to correct the errors mentioned in the student's feedback"""
+
+            # Get appropriate client and deployment based on model choice
+            client, deployment = self.get_client_and_deployment(model)
+
+            response = client.chat.completions.create(
+                model=deployment,
+                messages=[
+                    {"role": "system", "content": "You are a tutor who has received feedback that your previous explanation had errors. Carefully address the student's feedback and provide a corrected explanation. Output ONLY structured markdown with headers, bullet points, and numbered lists. NEVER write paragraphs. Use $...$ for ALL mathematical expressions. Be concise."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=800,  # Slightly more tokens for corrected explanation
+                temperature=0.2
+            )
+
+            tokens_used = {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+
+            return response.choices[0].message.content.strip(), tokens_used
+
+        except Exception as e:
+            print(f"Error regenerating explanation with feedback: {e}")
+            return "Unable to regenerate explanation at this time.", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
     async def generate_similar_questions(
         self,
         question_text: str,
