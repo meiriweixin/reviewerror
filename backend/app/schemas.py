@@ -96,6 +96,9 @@ class QuestionSearchRequest(BaseModel):
     query: str
     limit: Optional[int] = 10
 
+class ExplanationFeedbackRequest(BaseModel):
+    feedback: str
+
 # Stats Schemas
 class StudentStats(BaseModel):
     total_questions: int

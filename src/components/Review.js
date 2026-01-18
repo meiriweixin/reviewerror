@@ -548,22 +548,13 @@ const Review = ({ user }) => {
                 <div className="mb-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-2xl p-4">
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="font-semibold text-blue-900 dark:text-blue-300">AI Explanation:</h4>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setShowFeedback(!showFeedback)}
-                        disabled={updating || submittingFeedback}
-                        className="px-3 py-1 text-xs bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 rounded-2xl hover:bg-orange-200 dark:hover:bg-orange-900/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                      >
-                        {showFeedback ? 'Cancel Feedback' : 'Report Error'}
-                      </button>
-                      <button
-                        onClick={() => handleRegenerateExplanation(selectedQuestion.id)}
-                        disabled={updating || submittingFeedback}
-                        className="px-3 py-1 text-xs bg-blue-600 dark:bg-blue-600 text-white rounded-2xl hover:bg-blue-700 dark:hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                      >
-                        {updating ? 'Regenerating...' : 'Regenerate'}
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => setShowFeedback(!showFeedback)}
+                      disabled={updating || submittingFeedback}
+                      className="px-3 py-1 text-xs bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 rounded-2xl hover:bg-orange-200 dark:hover:bg-orange-900/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    >
+                      {showFeedback ? 'Cancel Feedback' : 'Report Error'}
+                    </button>
                   </div>
 
                   {/* Feedback Form */}

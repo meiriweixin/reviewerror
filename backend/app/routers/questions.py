@@ -11,7 +11,8 @@ from app.schemas import (
     QuestionResponse,
     QuestionUpdate,
     UploadResponse,
-    QuestionSearchRequest
+    QuestionSearchRequest,
+    ExplanationFeedbackRequest
 )
 from app.routers.auth import get_current_user
 from app.services.azure_ai_service import azure_ai_service
@@ -519,7 +520,7 @@ async def regenerate_explanation(
 @router.post("/{question_id}/feedback", response_model=QuestionResponse)
 async def submit_explanation_feedback(
     question_id: int,
-    feedback_data: Dict[str, str],
+    feedback_request: ExplanationFeedbackRequest,
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
@@ -535,7 +536,7 @@ async def submit_explanation_feedback(
             detail="Question not found"
         )
 
-    feedback = feedback_data.get('feedback', '').strip()
+    feedback = feedback_request.feedback.strip()
     if not feedback:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
