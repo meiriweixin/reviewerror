@@ -73,6 +73,7 @@ class QuestionResponse(QuestionBase):
     user_id: int
     image_url: Optional[str] = None
     image_snippet_url: Optional[str] = None
+    correct_answer_url: Optional[str] = None
     explanation: Optional[str] = None
     user_notes: Optional[str] = None
     status: QuestionStatus

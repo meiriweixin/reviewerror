@@ -116,6 +116,23 @@ export const submitExplanationFeedback = async (questionId, feedback) => {
   return response.data;
 };
 
+export const uploadCorrectAnswer = async (questionId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await api.post(`/questions/${questionId}/correct-answer`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const deleteCorrectAnswer = async (questionId) => {
+  const response = await api.delete(`/questions/${questionId}/correct-answer`);
+  return response.data;
+};
+
 export const getSimilarQuestions = async (questionId) => {
   const response = await api.post(`/questions/${questionId}/similar`);
   return response.data;

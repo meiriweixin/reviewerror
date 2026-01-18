@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { getWrongQuestions, updateQuestionStatus, updateQuestionNotes, searchQuestions, deleteQuestion, regenerateExplanation, submitExplanationFeedback, getSimilarQuestions, getCustomSubjects } from '../services/api';
+import { getWrongQuestions, updateQuestionStatus, updateQuestionNotes, searchQuestions, deleteQuestion, regenerateExplanation, submitExplanationFeedback, uploadCorrectAnswer, deleteCorrectAnswer, getSimilarQuestions, getCustomSubjects } from '../services/api';
 import MermaidDiagram from './MermaidDiagram';
 
 // Subject list (same as Upload.js)
@@ -69,6 +69,8 @@ const Review = ({ user }) => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [uploadingCorrectAnswer, setUploadingCorrectAnswer] = useState(false);
+  const [deletingCorrectAnswer, setDeletingCorrectAnswer] = useState(false);
 
   // Load custom subjects on mount
   const loadCustomSubjects = useCallback(async () => {
@@ -258,6 +260,53 @@ const Review = ({ user }) => {
   const handleCancelFeedback = () => {
     setShowFeedback(false);
     setFeedbackText('');
+  };
+
+  const handleUploadCorrectAnswer = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selectedQuestion) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+
+    setUploadingCorrectAnswer(true);
+    try {
+      const updatedQuestion = await uploadCorrectAnswer(selectedQuestion.id, file);
+      // Update local state
+      setQuestions(questions.map(q =>
+        q.id === selectedQuestion.id ? updatedQuestion : q
+      ));
+      setSelectedQuestion(updatedQuestion);
+    } catch (error) {
+      console.error('Failed to upload correct answer:', error);
+      alert('Failed to upload correct answer. Please try again.');
+    } finally {
+      setUploadingCorrectAnswer(false);
+      // Reset file input
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteCorrectAnswer = async () => {
+    if (!selectedQuestion) return;
+
+    setDeletingCorrectAnswer(true);
+    try {
+      const updatedQuestion = await deleteCorrectAnswer(selectedQuestion.id);
+      // Update local state
+      setQuestions(questions.map(q =>
+        q.id === selectedQuestion.id ? updatedQuestion : q
+      ));
+      setSelectedQuestion(updatedQuestion);
+    } catch (error) {
+      console.error('Failed to delete correct answer:', error);
+      alert('Failed to delete correct answer. Please try again.');
+    } finally {
+      setDeletingCorrectAnswer(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -600,6 +649,51 @@ const Review = ({ user }) => {
                   </div>
                 </div>
               )}
+
+              {/* Correct Answer Section */}
+              <div className="mb-6 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-semibold text-emerald-900 dark:text-emerald-300">Correct Answer:</h4>
+                  <div className="flex gap-2">
+                    {selectedQuestion.correct_answer_url && (
+                      <button
+                        onClick={handleDeleteCorrectAnswer}
+                        disabled={deletingCorrectAnswer}
+                        className="px-3 py-1 text-xs bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 rounded-2xl hover:bg-red-200 dark:hover:bg-red-900/60 transition-colors disabled:opacity-50 font-medium"
+                      >
+                        {deletingCorrectAnswer ? 'Deleting...' : 'Remove'}
+                      </button>
+                    )}
+                    <label className="px-3 py-1 text-xs bg-emerald-600 dark:bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 dark:hover:bg-emerald-700 transition-colors cursor-pointer font-medium">
+                      {uploadingCorrectAnswer ? 'Uploading...' : (selectedQuestion.correct_answer_url ? 'Replace' : 'Upload')}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadCorrectAnswer}
+                        disabled={uploadingCorrectAnswer}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {selectedQuestion.correct_answer_url ? (
+                  <div className="dark:bg-white dark:p-4 dark:rounded-xl">
+                    <img
+                      src={getImageUrl(selectedQuestion.correct_answer_url)}
+                      alt="Correct Answer"
+                      className="w-full rounded-xl"
+                      style={{
+                        filter: 'grayscale(100%) contrast(120%) brightness(105%)'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-emerald-600/60 dark:text-emerald-400/60 italic text-sm">
+                    No correct answer uploaded yet. Click "Upload" to add the correct answer image for reference.
+                  </p>
+                )}
+              </div>
 
               {/* Personal Notes Section */}
               <div className="mb-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4">

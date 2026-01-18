@@ -582,6 +582,99 @@ async def submit_explanation_feedback(
             detail=f"Failed to regenerate explanation with feedback: {str(e)}"
         )
 
+@router.post("/{question_id}/correct-answer", response_model=QuestionResponse)
+async def upload_correct_answer(
+    question_id: int,
+    file: UploadFile = File(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Upload the correct answer image for a question.
+    The image is stored in Supabase Storage.
+    """
+    question = await supabase_db.get_question_by_id(question_id)
+
+    if not question or question.get('user_id') != current_user['id']:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question not found"
+        )
+
+    # Validate file type
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an image"
+        )
+
+    try:
+        # Read file data
+        file_data = await file.read()
+
+        # Generate unique filename
+        file_ext = os.path.splitext(file.filename)[1]
+        unique_filename = f"correct_answer_{question_id}_{uuid.uuid4()}{file_ext}"
+
+        # Upload to Supabase Storage
+        correct_answer_url = await supabase_storage.upload_image(
+            file_data=file_data,
+            filename=unique_filename,
+            content_type=file.content_type
+        )
+
+        # Update question with the correct answer URL
+        updated_question = await supabase_db.update_question(
+            question_id,
+            correct_answer_url=correct_answer_url
+        )
+
+        return QuestionResponse(**updated_question)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload correct answer: {str(e)}"
+        )
+
+@router.delete("/{question_id}/correct-answer", response_model=QuestionResponse)
+async def delete_correct_answer(
+    question_id: int,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Delete the correct answer image for a question.
+    """
+    question = await supabase_db.get_question_by_id(question_id)
+
+    if not question or question.get('user_id') != current_user['id']:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question not found"
+        )
+
+    try:
+        # Delete from Supabase Storage if exists
+        correct_answer_url = question.get('correct_answer_url')
+        if correct_answer_url and 'supabase' in correct_answer_url:
+            try:
+                await supabase_storage.delete_image(correct_answer_url)
+            except Exception as e:
+                print(f"Warning: Failed to delete correct answer image from storage: {e}")
+
+        # Update question to remove the correct answer URL
+        updated_question = await supabase_db.update_question(
+            question_id,
+            correct_answer_url=None
+        )
+
+        return QuestionResponse(**updated_question)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete correct answer: {str(e)}"
+        )
+
 @router.post("/{question_id}/similar")
 async def generate_similar_questions(
     question_id: int,
