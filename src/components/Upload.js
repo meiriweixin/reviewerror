@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { uploadImage, getCustomSubjects, createCustomSubject, deleteCustomSubject } from '../services/api';
+import { uploadImage, getCustomSubjects, createCustomSubject, deleteCustomSubject, getTokenLimitStatus } from '../services/api';
 
 const SUBJECTS = [
   'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Chinese',
@@ -34,6 +34,7 @@ const Upload = ({ user }) => {
   const [wrongOnly, setWrongOnly] = useState(true); // Default: extract only wrong questions
   const [customSubjects, setCustomSubjects] = useState([]); // User's saved custom subjects
   const [savingSubject, setSavingSubject] = useState(false);
+  const [limitStatus, setLimitStatus] = useState(null); // Monthly token limit status
 
   // Load custom subjects on mount
   const loadCustomSubjects = useCallback(async () => {
@@ -48,6 +49,20 @@ const Upload = ({ user }) => {
   useEffect(() => {
     loadCustomSubjects();
   }, [loadCustomSubjects]);
+
+  // Load token limit status on mount
+  const loadLimitStatus = useCallback(async () => {
+    try {
+      const status = await getTokenLimitStatus();
+      setLimitStatus(status);
+    } catch (err) {
+      console.error('Failed to load token limit status:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLimitStatus();
+  }, [loadLimitStatus]);
 
   // Save custom subject to database
   const handleSaveCustomSubject = async () => {
@@ -225,6 +240,11 @@ const Upload = ({ user }) => {
     return () => window.removeEventListener('paste', handleGlobalPaste);
   }, []);
 
+  // Format number with commas
+  const formatNumber = (num) => {
+    return num?.toLocaleString() || '0';
+  };
+
   return (
     <div className="max-w-2xl mx-auto min-h-[calc(100vh-200px)] flex flex-col justify-center">
       {/* Success Message */}
@@ -244,6 +264,70 @@ const Upload = ({ user }) => {
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
           </svg>
           <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+      {/* Monthly Token Limit Status */}
+      {limitStatus && (
+        <div className={`mb-6 rounded-2xl p-4 border ${
+          limitStatus.exceeded
+            ? 'bg-red-50 border-red-300'
+            : limitStatus.percentage_used >= 80
+            ? 'bg-yellow-50 border-yellow-300'
+            : 'bg-green-50 border-green-300'
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              {limitStatus.exceeded ? (
+                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              <span className="text-sm font-medium text-gray-700">Monthly Token Limit</span>
+            </div>
+            <span className="text-sm font-bold text-gray-900">
+              {formatNumber(limitStatus.monthly_used)} / {formatNumber(limitStatus.monthly_limit)}
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div
+              className={`h-full transition-all duration-500 ${
+                limitStatus.exceeded
+                  ? 'bg-red-500'
+                  : limitStatus.percentage_used >= 80
+                  ? 'bg-yellow-500'
+                  : 'bg-green-500'
+              }`}
+              style={{ width: `${Math.min(limitStatus.percentage_used, 100)}%` }}
+            />
+          </div>
+
+          <div className="flex justify-between items-center mt-2">
+            <span className="text-xs text-gray-500">
+              {limitStatus.exceeded
+                ? 'Limit exceeded!'
+                : `${formatNumber(limitStatus.remaining)} tokens remaining`
+              }
+            </span>
+            <span className="text-xs text-gray-500">
+              {limitStatus.percentage_used.toFixed(1)}% used
+            </span>
+          </div>
+
+          {/* Warning if exceeded */}
+          {limitStatus.exceeded && (
+            <div className="mt-2 p-2 bg-red-100 border border-red-200 rounded-lg">
+              <p className="text-xs text-red-700 font-medium">
+                You have exceeded your monthly limit. Please wait until the limit resets.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

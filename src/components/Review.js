@@ -4,7 +4,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { getWrongQuestions, updateQuestionStatus, updateQuestionNotes, searchQuestions, deleteQuestion, regenerateExplanation, submitExplanationFeedback, uploadCorrectAnswer, deleteCorrectAnswer, getSimilarQuestions, getCustomSubjects } from '../services/api';
-import MermaidDiagram from './MermaidDiagram';
+import DiagramRenderer from './diagrams/DiagramRenderer';
 
 // Subject list (same as Upload.js)
 const SUBJECTS = [
@@ -531,7 +531,7 @@ const Review = ({ user }) => {
                         </p>
                         {similarQuestions[question.id].diagrams && similarQuestions[question.id].diagrams[idx] && (
                           <div className="mt-2">
-                            <MermaidDiagram code={similarQuestions[question.id].diagrams[idx]} />
+                            <DiagramRenderer spec={similarQuestions[question.id].diagrams[idx]} subject={question.subject} />
                           </div>
                         )}
                       </div>
@@ -788,7 +788,7 @@ const Review = ({ user }) => {
                         </p>
                         {similarQuestions[selectedQuestion.id].diagrams && similarQuestions[selectedQuestion.id].diagrams[idx] && (
                           <div className="mt-3">
-                            <MermaidDiagram code={similarQuestions[selectedQuestion.id].diagrams[idx]} />
+                            <DiagramRenderer spec={similarQuestions[selectedQuestion.id].diagrams[idx]} subject={selectedQuestion.subject} />
                           </div>
                         )}
                       </div>

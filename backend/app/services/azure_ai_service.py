@@ -339,239 +339,211 @@ STRICT RULES:
             return "Unable to generate explanation at this time.", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     def _get_diagram_guidance(self, subject: str) -> str:
-        """Return subject-specific Mermaid diagram guidance."""
+        """Return subject-specific JSON diagram guidance for exam-paper style diagrams."""
 
         guidance = {
-            'Physics': """PHYSICS DIAGRAM STYLES:
+            'Physics': """PHYSICS DIAGRAM JSON FORMAT:
 
-For CIRCUITS (Electricity):
-- Use ((circle)) for bulbs/lamps, [rectangle] for batteries/power sources
-- Series circuit: components in a line
-- Parallel circuit: branches from power source
-- Include switch as {{diamond}} shape when relevant
+For CIRCUITS - use type "physics_circuit":
+{
+  "type": "physics_circuit",
+  "title": "Series Circuit with Faulty Bulb",
+  "width": 400,
+  "height": 150,
+  "elements": [
+    {"id": "bat", "type": "battery", "position": {"x": 50, "y": 75}, "value": "6V"},
+    {"id": "b1", "type": "bulb", "position": {"x": 150, "y": 75}, "label": "L1"},
+    {"id": "b2", "type": "bulb", "position": {"x": 250, "y": 75}, "label": "L2", "state": "faulty"},
+    {"id": "b3", "type": "bulb", "position": {"x": 350, "y": 75}, "label": "L3"}
+  ],
+  "connections": [
+    {"from": "bat", "to": "b1", "fromPort": "right", "toPort": "left"},
+    {"from": "b1", "to": "b2", "fromPort": "right", "toPort": "left"},
+    {"from": "b2", "to": "b3", "fromPort": "right", "toPort": "left"},
+    {"from": "b3", "to": "bat", "fromPort": "right", "toPort": "left"}
+  ]
+}
 
-Series Circuit Example:
-graph LR
-    BAT[Battery +] --> S{{Switch}}
-    S --> L1((Bulb 1))
-    L1 --> L2((Bulb 2))
-    L2 --> L3((Bulb 3))
-    L3 --> BAT2[Battery -]
+Available circuit element types: battery, bulb, resistor, switch, ammeter, voltmeter, capacitor, diode, led, motor, bell, fuse
 
-Parallel Circuit Example:
-graph TD
-    subgraph Power
-        BAT[Battery]
-    end
-    BAT --> L1((Bulb 1))
-    BAT --> L2((Bulb 2))
-    BAT --> L3((Bulb 3))
-    L1 --> GND[Ground]
-    L2 --> GND
-    L3 --> GND
+For FORCE DIAGRAMS - use type "physics_force":
+{
+  "type": "physics_force",
+  "title": "Forces on a Block",
+  "width": 300,
+  "height": 250,
+  "elements": [
+    {"id": "obj", "type": "object", "position": {"x": 150, "y": 125}, "shape": "rectangle", "width": 60, "height": 40, "label": "Block"},
+    {"id": "w", "type": "force", "position": {"x": 150, "y": 125}, "direction": 270, "magnitude": 60, "label": "W = mg"},
+    {"id": "n", "type": "force", "position": {"x": 150, "y": 125}, "direction": 90, "magnitude": 60, "label": "N"},
+    {"id": "f", "type": "force", "position": {"x": 150, "y": 125}, "direction": 180, "magnitude": 40, "label": "f"}
+  ]
+}
 
-For MECHANICS (Forces/Motion):
-- Use arrows to show force directions
-- Label forces clearly (F, mg, N, f)
+Force direction: 0=right, 90=up, 180=left, 270=down""",
 
-Force Diagram Example:
-graph TD
-    subgraph Object
-        OBJ[Block]
-    end
-    UP[N: Normal] --> OBJ
-    OBJ --> DOWN[mg: Weight]
-    LEFT[f: Friction] --> OBJ
-    OBJ --> RIGHT[F: Applied]
+            'Chemistry': """CHEMISTRY DIAGRAM JSON FORMAT:
 
-For OPTICS (Light/Mirrors/Lenses):
-graph LR
-    SRC[Light Source] --> |ray| M[Mirror/Lens]
-    M --> |reflected| IMG[Image]""",
+For MOLECULAR STRUCTURES - use type "chemistry_structure":
+{
+  "type": "chemistry_structure",
+  "title": "Water Molecule (H2O)",
+  "width": 200,
+  "height": 150,
+  "elements": [
+    {"id": "o", "type": "atom", "symbol": "O", "position": {"x": 100, "y": 75}},
+    {"id": "h1", "type": "atom", "symbol": "H", "position": {"x": 50, "y": 100}},
+    {"id": "h2", "type": "atom", "symbol": "H", "position": {"x": 150, "y": 100}},
+    {"id": "b1", "type": "bond", "from": "o", "to": "h1", "bondType": "single"},
+    {"id": "b2", "type": "bond", "from": "o", "to": "h2", "bondType": "single"}
+  ]
+}
 
-            'Chemistry': """CHEMISTRY DIAGRAM STYLES:
+Bond types: single, double, triple, dashed, wedge
+Ion charges: use "charge": "+1" or "charge": "-1" on atoms
 
-For REACTIONS:
-graph LR
-    subgraph Reactants
-        A[H2]
-        B[O2]
-    end
-    A --> |combine| C[Reaction]
-    B --> C
-    C --> D[H2O]
+For REACTION DIAGRAMS - use type "chemistry_reaction":
+{
+  "type": "chemistry_reaction",
+  "title": "Combustion of Methane",
+  "width": 400,
+  "height": 100,
+  "elements": [
+    {"id": "r1", "type": "atom", "symbol": "CH4", "position": {"x": 50, "y": 50}},
+    {"id": "r2", "type": "atom", "symbol": "O2", "position": {"x": 120, "y": 50}},
+    {"id": "p1", "type": "atom", "symbol": "CO2", "position": {"x": 280, "y": 50}},
+    {"id": "p2", "type": "atom", "symbol": "H2O", "position": {"x": 350, "y": 50}}
+  ],
+  "connections": [
+    {"from": "r2", "to": "p1", "type": "arrow", "label": "heat"}
+  ]
+}""",
 
-For STATES OF MATTER:
-graph TD
-    SOLID[Solid] --> |melting| LIQUID[Liquid]
-    LIQUID --> |freezing| SOLID
-    LIQUID --> |evaporation| GAS[Gas]
-    GAS --> |condensation| LIQUID
+            'Mathematics': """MATHEMATICS DIAGRAM JSON FORMAT:
 
-For ATOMIC STRUCTURE:
-graph TD
-    subgraph Atom
-        N[Nucleus: p+ n]
-    end
-    E1((e-)) --> N
-    E2((e-)) --> N
-    E3((e-)) --> N""",
+For GEOMETRY - use type "math_geometry":
+{
+  "type": "math_geometry",
+  "title": "Triangle ABC",
+  "width": 300,
+  "height": 250,
+  "elements": [
+    {"id": "tri", "type": "triangle", "vertices": [{"x": 150, "y": 50}, {"x": 50, "y": 200}, {"x": 250, "y": 200}], "label": "A,B,C"},
+    {"id": "angle_a", "type": "angle", "vertex": {"x": 150, "y": 50}, "ray1End": {"x": 50, "y": 200}, "ray2End": {"x": 250, "y": 200}, "angleDegrees": 40}
+  ]
+}
 
-            'Biology': """BIOLOGY DIAGRAM STYLES:
+Geometry element types: point, segment, ray, line, angle, circle, arc, triangle, rectangle, square, polygon, parallel_mark, equal_mark, perpendicular_mark
 
-For CELL PROCESSES:
-graph LR
-    subgraph Cell
-        A[Input] --> B[Process]
-        B --> C[Output]
-    end
+Circle example:
+{"id": "c1", "type": "circle", "center": {"x": 150, "y": 125}, "radius": 50, "label": "O"}
 
-For FOOD CHAINS/WEBS:
-graph LR
-    SUN[Sun] --> P[Producer]
-    P --> H[Herbivore]
-    H --> C[Carnivore]
-    C --> D[Decomposer]
-    D --> P
+Segment with measurement:
+{"id": "seg1", "type": "segment", "start": {"x": 50, "y": 100}, "end": {"x": 200, "y": 100}, "label": "5 cm", "showMeasurement": true}
 
-For BODY SYSTEMS:
-graph TD
-    HEART[Heart] --> |pumps| ART[Arteries]
-    ART --> |delivers| BODY[Body Cells]
-    BODY --> |returns| VEINS[Veins]
-    VEINS --> HEART
+Right angle (90 degrees shows small square):
+{"id": "rt", "type": "angle", "vertex": {"x": 100, "y": 150}, "ray1End": {"x": 100, "y": 50}, "ray2End": {"x": 200, "y": 150}, "angleDegrees": 90}
 
-For INHERITANCE/GENETICS:
-graph TD
-    P1[Parent Aa] --> |gametes| G1[A]
-    P1 --> G2[a]
-    P2[Parent Aa] --> G3[A]
-    P2 --> G4[a]""",
+For GRAPHS (coordinate systems) - use type "math_graph":
+{
+  "type": "math_graph",
+  "title": "Linear Function",
+  "width": 300,
+  "height": 300,
+  "elements": [
+    {"id": "grid", "type": "grid", "spacing": 30},
+    {"id": "xaxis", "type": "x_axis", "label": "x"},
+    {"id": "yaxis", "type": "y_axis", "label": "y"},
+    {"id": "line1", "type": "line", "equation": "y = 2x + 1", "label": "y = 2x + 1"},
+    {"id": "pt1", "type": "point", "position": {"x": 0, "y": 1}, "label": "(0, 1)"},
+    {"id": "pt2", "type": "point", "position": {"x": 2, "y": 5}, "label": "(2, 5)"}
+  ]
+}
 
-            'Mathematics': """MATHEMATICS DIAGRAM STYLES:
+Graph element types: grid, x_axis, y_axis, point, line, curve, parabola, circle, asymptote, shaded_region, arrow
 
-For GEOMETRY (shapes, angles):
-- Describe relationships between points/shapes
-graph TD
-    A[Point A] --- B[Point B]
-    B --- C[Point C]
-    C --- A
+Linear equation example (draws y = mx + c):
+{"id": "l1", "type": "line", "equation": "y = 2x - 3", "label": "y = 2x - 3"}
 
-For FUNCTIONS/MAPPINGS:
-graph LR
-    subgraph Domain
-        X1[x1]
-        X2[x2]
-    end
-    subgraph Range
-        Y1[y1]
-        Y2[y2]
-    end
-    X1 --> Y1
-    X2 --> Y2
+Quadratic/Parabola example (draws y = ax² + bx + c):
+{"id": "p1", "type": "parabola", "equation": "y = x² - 4", "label": "y = x² - 4"}
 
-For TREE DIAGRAMS (Probability):
-graph TD
-    START[Start] --> A[Event A: 0.5]
-    START --> B[Event B: 0.5]
-    A --> A1[A1: 0.3]
-    A --> A2[A2: 0.7]
-    B --> B1[B1: 0.4]
-    B --> B2[B2: 0.6]
+Plotting specific points:
+{"id": "pt", "type": "point", "position": {"x": 3, "y": 2}, "label": "A(3, 2)"}
 
-For SET DIAGRAMS:
-graph TD
-    subgraph Universal Set
-        subgraph Set A
-            A1[elem1]
-        end
-        subgraph Set B
-            B1[elem2]
-        end
-        AB[intersection]
-    end""",
+Curve through points (for custom curves):
+{"id": "c1", "type": "curve", "points": [{"x": -3, "y": 2}, {"x": 0, "y": -1}, {"x": 3, "y": 2}]}
 
-            'Computer Science': """COMPUTER SCIENCE DIAGRAM STYLES:
+Shaded region (for inequalities):
+{"id": "shade", "type": "shaded_region", "points": [{"x": 0, "y": 0}, {"x": 4, "y": 0}, {"x": 4, "y": 4}, {"x": 0, "y": 4}]}
 
-For ALGORITHMS/FLOWCHARTS:
-graph TD
-    START([Start]) --> INPUT[/Input data/]
-    INPUT --> PROC[Process]
-    PROC --> DEC{{Decision?}}
-    DEC --> |Yes| OUT1[Output A]
-    DEC --> |No| OUT2[Output B]
-    OUT1 --> END([End])
-    OUT2 --> END
+Circle on graph:
+{"id": "circ", "type": "circle", "position": {"x": 0, "y": 0}, "radius": 2}
 
-For DATA STRUCTURES:
-graph LR
-    subgraph Linked List
-        N1[Node 1] --> N2[Node 2]
-        N2 --> N3[Node 3]
-        N3 --> NULL[null]
-    end
+IMPORTANT: Position values are in graph coordinates (not pixels). The origin (0,0) is at center.
+- Positive x goes right, negative x goes left
+- Positive y goes up, negative y goes down
+- spacing in grid element is in pixels (default 30 = 1 unit)""",
 
-For NETWORKS:
-graph TD
-    CLIENT[Client] --> |request| SERVER[Server]
-    SERVER --> |response| CLIENT
-    SERVER --> DB[(Database)]""",
+            'Biology': """BIOLOGY DIAGRAM JSON FORMAT:
 
-            'Geography': """GEOGRAPHY DIAGRAM STYLES:
+For CELL STRUCTURES - use type "biology_cell":
+{
+  "type": "biology_cell",
+  "title": "Plant Cell",
+  "width": 300,
+  "height": 250,
+  "elements": [
+    {"id": "membrane", "type": "cell_membrane", "position": {"x": 150, "y": 125}, "width": 250, "height": 200, "shape": "rectangular"},
+    {"id": "nucleus", "type": "nucleus", "position": {"x": 150, "y": 125}},
+    {"id": "mito1", "type": "mitochondria", "position": {"x": 80, "y": 80}},
+    {"id": "chloro1", "type": "chloroplast", "position": {"x": 220, "y": 80}},
+    {"id": "vacuole", "type": "vacuole", "position": {"x": 150, "y": 180}, "width": 80, "height": 50}
+  ]
+}
 
-For WATER CYCLE:
-graph TD
-    OCEAN[Ocean] --> |evaporation| CLOUD[Clouds]
-    CLOUD --> |condensation| RAIN[Precipitation]
-    RAIN --> |runoff| RIVER[Rivers]
-    RIVER --> OCEAN
-    RAIN --> |infiltration| GROUND[Groundwater]
+Cell element types: cell_membrane, nucleus, mitochondria, chloroplast, vacuole, ribosome
 
-For PLATE TECTONICS:
-graph LR
-    P1[Plate A] --> |convergent| MOUNT[Mountains]
-    P2[Plate B] --> MOUNT
-
-For ECOSYSTEMS:
-graph TD
-    SUN[Sun Energy] --> PROD[Producers]
-    PROD --> CONS1[Primary Consumers]
-    CONS1 --> CONS2[Secondary Consumers]""",
-
-            'Economics': """ECONOMICS DIAGRAM STYLES:
-
-For CIRCULAR FLOW:
-graph LR
-    HH[Households] --> |labor| FIRMS[Firms]
-    FIRMS --> |wages| HH
-    FIRMS --> |goods| HH
-    HH --> |spending| FIRMS
-
-For SUPPLY/DEMAND:
-graph TD
-    HIGH[High Price] --> LS[Low Demand]
-    HIGH --> HS[High Supply]
-    LOW[Low Price] --> HD[High Demand]
-    LOW --> LD[Low Supply]
-    EQ{{Equilibrium}} --> HIGH
-    EQ --> LOW
-
-For TRADE:
-graph LR
-    C1[Country A] --> |exports| C2[Country B]
-    C2 --> |imports| C1"""
+For FOOD CHAINS/PROCESSES - use type "biology_process":
+{
+  "type": "biology_process",
+  "title": "Simple Food Chain",
+  "width": 500,
+  "height": 100,
+  "elements": [
+    {"id": "sun", "type": "label_box", "position": {"x": 50, "y": 50}, "label": "Sun"},
+    {"id": "plant", "type": "organism", "position": {"x": 150, "y": 50}, "label": "Grass"},
+    {"id": "herb", "type": "organism", "position": {"x": 270, "y": 50}, "label": "Rabbit"},
+    {"id": "carn", "type": "organism", "position": {"x": 390, "y": 50}, "label": "Fox"}
+  ],
+  "connections": [
+    {"from": "sun", "to": "plant", "label": "energy"},
+    {"from": "plant", "to": "herb"},
+    {"from": "herb", "to": "carn"}
+  ]
+}"""
         }
 
-        return guidance.get(subject, """GENERAL DIAGRAM STYLE:
-graph TD
-    A[Input/Start] --> B[Process/Middle]
-    B --> C[Output/End]
+        return guidance.get(subject, """GENERAL FLOWCHART JSON FORMAT:
 
-Use appropriate shapes:
-- [Rectangle] for general items
-- ((Circle)) for important nodes
-- {{Diamond}} for decisions
-- ([Stadium]) for start/end""")
+Use type "flowchart" for generic diagrams:
+{
+  "type": "flowchart",
+  "title": "Process Flow",
+  "width": 350,
+  "height": 200,
+  "elements": [
+    {"id": "start", "type": "oval", "position": {"x": 175, "y": 30}, "label": "Start"},
+    {"id": "step1", "type": "box", "position": {"x": 175, "y": 90}, "label": "Process"},
+    {"id": "end", "type": "oval", "position": {"x": 175, "y": 150}, "label": "End"}
+  ],
+  "connections": [
+    {"from": "start", "to": "step1"},
+    {"from": "step1", "to": "end"}
+  ]
+}
+
+Flowchart element types: box, diamond, oval, parallelogram""")
 
     def _clean_mermaid_code(self, code: str) -> Optional[str]:
         """Clean and validate Mermaid diagram code."""
@@ -757,9 +729,11 @@ REQUIREMENTS:
 5. Keep each question concise and clear
 
 DIAGRAM INSTRUCTIONS:
-For each question, generate a Mermaid.js diagram that visually represents the problem.
+For each question that would benefit from a visual diagram, generate a JSON diagram specification.
+The diagram will be rendered as a BLACK & WHITE exam-paper style diagram with proper scientific symbols.
 - Use ONLY English labels in diagrams (no Chinese characters)
 - Keep labels SHORT (1-3 words max)
+- Follow the exact JSON structure for the diagram type
 
 {diagram_guidance}
 
@@ -768,7 +742,7 @@ Return your response as a JSON object with this EXACT structure:
     "questions": [
         {{
             "text": "Full question text here",
-            "diagram": "graph LR\\n    A[Node] --> B[Node]"
+            "diagram": {{"type": "physics_circuit", "title": "...", "width": 400, "height": 150, "elements": [...], "connections": [...]}}
         }},
         {{
             "text": "Second question text",
@@ -776,10 +750,12 @@ Return your response as a JSON object with this EXACT structure:
         }},
         {{
             "text": "Third question text",
-            "diagram": "graph TD\\n    A[Node] --> B[Node]"
+            "diagram": {{"type": "math_geometry", "title": "...", "width": 300, "height": 250, "elements": [...]}}
         }}
     ]
 }}
+
+IMPORTANT: The "diagram" field should be a JSON OBJECT (not a string), or null if no diagram is needed.
 
 Return ONLY valid JSON, no markdown code blocks."""
             else:
@@ -849,10 +825,20 @@ Return ONLY valid JSON, no markdown code blocks."""
                 for q in questions_data[:3]:
                     questions.append(q.get("text", "Unable to generate question."))
                     diagram = q.get("diagram")
-                    # Clean up diagram code if present
-                    if diagram:
-                        diagram = self._clean_mermaid_code(diagram)
-                    diagrams.append(diagram)
+                    # Diagram is now a JSON object (dict) or null, not Mermaid string
+                    # Convert dict to JSON string for frontend, or keep as null
+                    if diagram and isinstance(diagram, dict):
+                        diagrams.append(json.dumps(diagram))
+                    elif diagram and isinstance(diagram, str):
+                        # If AI returned a string, try to parse it as JSON
+                        try:
+                            parsed_diagram = json.loads(diagram)
+                            diagrams.append(json.dumps(parsed_diagram))
+                        except json.JSONDecodeError:
+                            # If it's not valid JSON, skip it
+                            diagrams.append(None)
+                    else:
+                        diagrams.append(None)
 
                 # Pad if needed
                 while len(questions) < 3:

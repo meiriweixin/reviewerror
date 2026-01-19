@@ -24,6 +24,7 @@
     "react-router-dom": "^6.20.1",
     "react-scripts": "5.0.1",
     "react-use-measure": "^2.1.7",
+    "reactflow": "^11.11.4",
     "recharts": "^3.6.0",
     "rehype-katex": "^7.0.1",
     "remark-math": "^6.0.0",
