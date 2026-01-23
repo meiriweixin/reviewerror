@@ -277,7 +277,84 @@ Return ONLY valid JSON, no additional text."""
         try:
             grade_context = f" for {grade} level" if grade else ""
 
-            prompt = f"""Question: {question_text}
+            # Subject-specific output format
+            subject_lower = subject.lower() if subject else ""
+            is_science = subject_lower in ['biology', 'chemistry']
+            is_math = subject_lower in ['mathematics', 'math', 'maths', 'additional mathematics', 'a math', 'e math']
+
+            if is_science:
+                output_format = f"""Question: {question_text}
+
+Subject: {subject}{grade_context}
+
+Output format - YOU MUST USE EXACTLY THIS STRUCTURE (copy it exactly):
+
+## Question
+Write ONE sentence restating the question.
+
+## Key words
+- **Term 1**: Brief definition or meaning
+- **Term 2**: Brief definition or meaning
+- **Term 3**: Brief definition or meaning
+(List all key terms relevant to this question)
+
+## Explanation
+- Use key words above to explain the correct answer
+- Connect the key terms to the question context
+- State the correct reasoning using precise scientific terminology
+- Point out common misconceptions if relevant
+
+## Final answer
+The correct answer with key word justification
+
+STRICT RULES:
+- DO NOT write long paragraphs
+- DO NOT add extra sections
+- Focus on SCIENTIFIC KEY WORDS and TERMINOLOGY
+- Bold all key terms using **term**
+- Keep each bullet point SHORT (max 20 words)
+- Use $...$ for any formulas or chemical equations
+- Example: "$CO_2$" for carbon dioxide, "$H_2O$" for water
+- NEVER use parentheses () for math/formulas, ALWAYS use $...$"""
+            elif is_math:
+                output_format = f"""Question: {question_text}
+
+Subject: {subject}{grade_context}
+
+Output format - YOU MUST USE EXACTLY THIS STRUCTURE (copy it exactly):
+
+## Question
+Write ONE sentence restating the question.
+
+## Key ideas
+- First key concept or formula
+- Second key concept or formula
+- Third key concept (if needed)
+
+## Step-by-step solution
+1. First step - show the calculation
+2. Second step - show the calculation
+3. Third step - show the calculation
+(Continue numbering until complete)
+
+## Final answer
+The final answer in a box or clear statement
+
+STRICT RULES:
+- DO NOT write paragraphs or long text
+- DO NOT add extra sections
+- ONLY use bullet points under "Key ideas"
+- ONLY use numbered list under "Step-by-step solution"
+- Keep each line SHORT (max 15 words)
+- Show CRITICAL calculation steps clearly
+- CRITICAL: Use $...$ for ALL math (variables, numbers, equations)
+- Example: "Let $x = 5$" NOT "Let x = 5" or "Let ( x = 5 )"
+- Example: "Calculate $92 - y$" NOT "Calculate ( 92 - y )"
+- Example: "$y \\geq 19.2$" NOT "( y >= 19.2 )"
+- NEVER use parentheses () for math, ALWAYS use $...$
+- Show mathematical working clearly"""
+            else:
+                output_format = f"""Question: {question_text}
 
 Subject: {subject}{grade_context}
 
@@ -313,13 +390,22 @@ STRICT RULES:
 - NEVER use parentheses () for math, ALWAYS use $...$
 - Show mathematical working clearly"""
 
+            prompt = output_format
+
             # Get appropriate client and deployment based on model choice
             client, deployment = self.get_client_and_deployment(model)
+
+            if is_science:
+                system_msg = "You are a tutor specializing in science subjects. Focus on KEY WORDS and scientific terminology. Output ONLY structured markdown with headers and bullet points. Bold all key terms. Use $...$ for formulas. Be concise and terminology-focused."
+            elif is_math:
+                system_msg = "You are a tutor. Output ONLY structured markdown with headers, bullet points, and numbered lists. NEVER write paragraphs. Show CRITICAL calculation steps. Use $...$ for ALL mathematical expressions. Be concise."
+            else:
+                system_msg = "You are a tutor. Output ONLY structured markdown with headers, bullet points, and numbered lists. NEVER write paragraphs. Use $...$ for ALL mathematical expressions. Be concise."
 
             response = client.chat.completions.create(
                 model=deployment,
                 messages=[
-                    {"role": "system", "content": "You are a tutor. Output ONLY structured markdown with headers, bullet points, and numbered lists. NEVER write paragraphs. Use $...$ for ALL mathematical expressions. Be concise."},
+                    {"role": "system", "content": system_msg},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=600,
@@ -602,24 +688,77 @@ Flowchart element types: box, diamond, oval, parallelogram""")
         try:
             grade_context = f" for {grade} level" if grade else ""
 
-            prompt = f"""Original Question: {question_text}
+            # Subject-specific output format for regeneration
+            subject_lower = subject.lower() if subject else ""
+            is_science = subject_lower in ['biology', 'chemistry']
+            is_math = subject_lower in ['mathematics', 'math', 'maths', 'additional mathematics', 'a math', 'e math']
 
-Subject: {subject}{grade_context}
+            if is_science:
+                output_section = """Output format - YOU MUST USE EXACTLY THIS STRUCTURE (copy it exactly):
 
-Previous AI Explanation:
-{current_explanation}
+## Question
+Write ONE sentence restating the question.
 
-Student Feedback (what was wrong with the explanation):
-{feedback}
+## Key words
+- **Term 1**: Brief definition or meaning
+- **Term 2**: Brief definition or meaning
+- **Term 3**: Brief definition or meaning
+(List all key terms relevant to this question)
 
-TASK: Generate a CORRECTED explanation that addresses the student's feedback.
-- Carefully analyze what the student said was wrong
-- Fix any errors in the previous explanation
-- Make sure the new explanation is accurate and addresses the feedback
-- If the student pointed out a calculation error, correct it
-- If the student said a concept was explained incorrectly, fix it
+## Explanation
+- Use key words above to explain the correct answer
+- Connect the key terms to the question context
+- State the correct reasoning using precise scientific terminology
+- Point out common misconceptions if relevant
 
-Output format - YOU MUST USE EXACTLY THIS STRUCTURE (copy it exactly):
+## Final answer
+The correct answer with key word justification
+
+STRICT RULES:
+- DO NOT write long paragraphs
+- DO NOT add extra sections
+- Focus on SCIENTIFIC KEY WORDS and TERMINOLOGY
+- Bold all key terms using **term**
+- Keep each bullet point SHORT (max 20 words)
+- Use $...$ for any formulas or chemical equations
+- NEVER use parentheses () for math/formulas, ALWAYS use $...$
+- MAKE SURE to correct the errors mentioned in the student's feedback"""
+            elif is_math:
+                output_section = """Output format - YOU MUST USE EXACTLY THIS STRUCTURE (copy it exactly):
+
+## Question
+Write ONE sentence restating the question.
+
+## Key ideas
+- First key concept or formula
+- Second key concept or formula
+- Third key concept (if needed)
+
+## Step-by-step solution
+1. First step - show the calculation
+2. Second step - show the calculation
+3. Third step - show the calculation
+(Continue numbering until complete)
+
+## Final answer
+The final answer in a box or clear statement
+
+STRICT RULES:
+- DO NOT write paragraphs or long text
+- DO NOT add extra sections
+- ONLY use bullet points under "Key ideas"
+- ONLY use numbered list under "Step-by-step solution"
+- Keep each line SHORT (max 15 words)
+- Show CRITICAL calculation steps clearly
+- CRITICAL: Use $...$ for ALL math (variables, numbers, equations)
+- Example: "Let $x = 5$" NOT "Let x = 5" or "Let ( x = 5 )"
+- Example: "Calculate $92 - y$" NOT "Calculate ( 92 - y )"
+- Example: "$y \\geq 19.2$" NOT "( y >= 19.2 )"
+- NEVER use parentheses () for math, ALWAYS use $...$
+- Show mathematical working clearly
+- MAKE SURE to correct the errors mentioned in the student's feedback"""
+            else:
+                output_section = """Output format - YOU MUST USE EXACTLY THIS STRUCTURE (copy it exactly):
 
 ## Question
 Write ONE sentence restating the question.
@@ -652,13 +791,39 @@ STRICT RULES:
 - Show mathematical working clearly
 - MAKE SURE to correct the errors mentioned in the student's feedback"""
 
+            prompt = f"""Original Question: {question_text}
+
+Subject: {subject}{grade_context}
+
+Previous AI Explanation:
+{current_explanation}
+
+Student Feedback (what was wrong with the explanation):
+{feedback}
+
+TASK: Generate a CORRECTED explanation that addresses the student's feedback.
+- Carefully analyze what the student said was wrong
+- Fix any errors in the previous explanation
+- Make sure the new explanation is accurate and addresses the feedback
+- If the student pointed out a calculation error, correct it
+- If the student said a concept was explained incorrectly, fix it
+
+{output_section}"""
+
             # Get appropriate client and deployment based on model choice
             client, deployment = self.get_client_and_deployment(model)
+
+            if is_science:
+                system_msg = "You are a tutor who has received feedback that your previous explanation had errors. Carefully address the student's feedback and provide a corrected explanation. Focus on KEY WORDS and scientific terminology. Output ONLY structured markdown with headers and bullet points. Bold all key terms. Use $...$ for formulas. Be concise and terminology-focused."
+            elif is_math:
+                system_msg = "You are a tutor who has received feedback that your previous explanation had errors. Carefully address the student's feedback and provide a corrected explanation. Show CRITICAL calculation steps. Output ONLY structured markdown with headers, bullet points, and numbered lists. NEVER write paragraphs. Use $...$ for ALL mathematical expressions. Be concise."
+            else:
+                system_msg = "You are a tutor who has received feedback that your previous explanation had errors. Carefully address the student's feedback and provide a corrected explanation. Output ONLY structured markdown with headers, bullet points, and numbered lists. NEVER write paragraphs. Use $...$ for ALL mathematical expressions. Be concise."
 
             response = client.chat.completions.create(
                 model=deployment,
                 messages=[
-                    {"role": "system", "content": "You are a tutor who has received feedback that your previous explanation had errors. Carefully address the student's feedback and provide a corrected explanation. Output ONLY structured markdown with headers, bullet points, and numbered lists. NEVER write paragraphs. Use $...$ for ALL mathematical expressions. Be concise."},
+                    {"role": "system", "content": system_msg},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=800,  # Slightly more tokens for corrected explanation
