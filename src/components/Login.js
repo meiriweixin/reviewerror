@@ -194,6 +194,7 @@ const Login = ({ onLogin }) => {
                           onSuccess={handleSuccess}
                           onError={handleError}
                           useOneTap
+                          use_fedcm_for_prompt={false}
                           theme="outline"
                           size="large"
                           text="continue_with"

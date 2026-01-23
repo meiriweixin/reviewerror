@@ -50,9 +50,17 @@ export const updateUserModel = async (preferredModel) => {
 };
 
 // Question APIs
-export const uploadImage = async (file, subject, grade, category = '', wrongOnly = true) => {
+export const uploadImage = async (files, subject, grade, category = '', wrongOnly = true) => {
   const formData = new FormData();
-  formData.append('file', file);
+
+  // Handle both single file (backward compatibility) and array of files
+  const fileArray = Array.isArray(files) ? files : [files];
+
+  // Append all files with the same key 'files' (FastAPI receives List[UploadFile])
+  fileArray.forEach(file => {
+    formData.append('files', file);
+  });
+
   formData.append('subject', subject);
   formData.append('grade', grade);
   if (category) {

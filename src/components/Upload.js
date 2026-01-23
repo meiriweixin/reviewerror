@@ -19,8 +19,7 @@ const CATEGORY_OPTIONS = {
 };
 
 const Upload = ({ user }) => {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [preview, setPreview] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]); // Array of {id, file, preview, name}
   const [subject, setSubject] = useState('');
   const [customSubject, setCustomSubject] = useState('');
   const [category, setCategory] = useState('');
@@ -101,29 +100,46 @@ const Upload = ({ user }) => {
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
-        setError('File size must be less than 10MB');
-        return;
-      }
-
-      if (!file.type.startsWith('image/')) {
-        setError('Please upload an image file');
-        return;
-      }
-
-      setSelectedFile(file);
-      setError('');
-
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+  // Add a single image to the queue
+  const addImage = (file) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload image files only');
+      return;
     }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Each file must be less than 10MB');
+      return;
+    }
+
+    if (selectedFiles.length >= 5) {
+      setError('Maximum 5 images allowed per upload');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSelectedFiles(prev => [...prev, {
+        id: Date.now() + Math.random(), // Unique ID
+        file,
+        preview: reader.result,
+        name: file.name
+      }]);
+      setError('');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Remove an image from the queue
+  const removeImage = (id) => {
+    setSelectedFiles(prev => prev.filter(img => img.id !== id));
+  };
+
+  // Handle file input change (supports multiple files)
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => addImage(file));
+    e.target.value = ''; // Reset input for re-selection
   };
 
   // Handle subject change - reset category when subject changes
@@ -139,8 +155,8 @@ const Upload = ({ user }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!selectedFile) {
-      setError('Please select an image to upload');
+    if (selectedFiles.length === 0) {
+      setError('Please select at least one image to upload');
       return;
     }
 
@@ -164,24 +180,29 @@ const Upload = ({ user }) => {
     setLoading(true);
     setError('');
     setSuccess('');
-    setUploadProgress({ status: 'Uploading image...', percent: 30 });
+    const imageText = selectedFiles.length > 1 ? `${selectedFiles.length} images` : 'image';
+    setUploadProgress({ status: `Uploading ${imageText}...`, percent: 30 });
 
     try {
-      setUploadProgress({ status: 'Analyzing image with AI...', percent: 60 });
+      setUploadProgress({ status: `Analyzing ${imageText} with AI...`, percent: 60 });
 
       // Use custom values if "custom" is selected
       const finalSubject = subject === 'custom' ? customSubject.trim() : subject;
       const finalCategory = category === 'custom' ? customCategory.trim() : category;
 
-      const result = await uploadImage(selectedFile, finalSubject, grade, finalCategory, wrongOnly);
+      // Pass array of file objects to API
+      const fileObjects = selectedFiles.map(img => img.file);
+      const result = await uploadImage(fileObjects, finalSubject, grade, finalCategory, wrongOnly);
 
       setUploadProgress({ status: wrongOnly ? 'Extracting wrong questions...' : 'Extracting all questions...', percent: 90 });
 
       setTimeout(() => {
-        setSuccess(`Successfully extracted ${result.questions_count} question(s)!`);
+        const successMessage = selectedFiles.length > 1
+          ? `Successfully extracted ${result.questions_count} question(s) from ${selectedFiles.length} images!`
+          : `Successfully extracted ${result.questions_count} question(s)!`;
+        setSuccess(successMessage);
         setUploadProgress(null);
-        setSelectedFile(null);
-        setPreview(null);
+        setSelectedFiles([]);
         setSubject('');
         setCustomSubject('');
         setCategory('');
@@ -191,7 +212,10 @@ const Upload = ({ user }) => {
 
     } catch (err) {
       console.error('Upload failed:', err);
-      setError(err.response?.data?.detail || 'Failed to upload image. Please try again.');
+      const errorMessage = selectedFiles.length > 1
+        ? 'Failed to upload images. Please try again.'
+        : 'Failed to upload image. Please try again.';
+      setError(err.response?.data?.detail || errorMessage);
       setUploadProgress(null);
       setLoading(false);
     }
@@ -199,11 +223,8 @@ const Upload = ({ user }) => {
 
   const handleDrop = (e) => {
     e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      const fakeEvent = { target: { files: [file] } };
-      handleFileChange(fakeEvent);
-    }
+    const files = Array.from(e.dataTransfer.files);
+    files.forEach(file => addImage(file));
   };
 
   const handleDragOver = (e) => {
@@ -218,8 +239,7 @@ const Upload = ({ user }) => {
       if (items[i].type.indexOf('image') !== -1) {
         const file = items[i].getAsFile();
         if (file) {
-          const fakeEvent = { target: { files: [file] } };
-          handleFileChange(fakeEvent);
+          addImage(file);
         }
         break;
       }
@@ -491,7 +511,7 @@ const Upload = ({ user }) => {
             </div>
           </div>
 
-          {!preview ? (
+          {selectedFiles.length === 0 ? (
             <div
               onDrop={handleDrop}
               onDragOver={handleDragOver}
@@ -500,6 +520,7 @@ const Upload = ({ user }) => {
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleFileChange}
                 className="hidden"
                 id="file-upload"
@@ -511,32 +532,56 @@ const Upload = ({ user }) => {
                 <p className="mt-2 text-sm text-gray-600">
                   <span className="font-semibold text-blue-600">Click</span>, Drag & Drop, or <span className="font-semibold text-blue-600">Paste</span> (Ctrl+V)
                 </p>
-                <p className="text-xs text-gray-400 mt-1">PNG, JPG, JPEG up to 10MB</p>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, JPEG up to 10MB each • Max 5 images</p>
               </label>
 
               {/* Tips inside upload area */}
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <p className="text-xs text-gray-400 leading-relaxed">
-                  💡 <span className="font-medium">Tips:</span> Clear, well-lit image • One page at a time
+                  💡 <span className="font-medium">Tips:</span> Upload multiple images if question spans pages
                   {wrongOnly && ' • Ensure ✓ and ✗ marks are visible'}
                 </p>
               </div>
             </div>
           ) : (
-            <div className="relative">
-              <img src={preview} alt="Preview" className="w-full rounded-2xl shadow-lg" />
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedFile(null);
-                  setPreview(null);
-                }}
-                className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-700">
+                  {selectedFiles.length} image{selectedFiles.length > 1 ? 's' : ''} selected
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFiles([])}
+                  className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors"
+                >
+                  Clear all
+                </button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {selectedFiles.map((img, index) => (
+                  <div key={img.id} className="relative group">
+                    <img
+                      src={img.preview}
+                      alt={img.name}
+                      className="w-full h-32 object-cover rounded-xl border border-gray-200"
+                    />
+                    <div className="absolute top-2 left-2 px-2 py-1 bg-black bg-opacity-60 text-white text-xs rounded-lg font-medium">
+                      Image {index + 1}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeImage(img.id)}
+                      className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      title="Remove image"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <p className="mt-1 text-xs text-gray-500 truncate" title={img.name}>{img.name}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -560,7 +605,7 @@ const Upload = ({ user }) => {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={loading || !selectedFile || !subject}
+          disabled={loading || selectedFiles.length === 0 || !subject}
           className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
         >
           {loading ? 'Processing...' : wrongOnly ? 'Analyze & Extract Wrong Questions' : 'Analyze & Extract All Questions'}

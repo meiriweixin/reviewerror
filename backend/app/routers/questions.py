@@ -24,7 +24,7 @@ router = APIRouter()
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_question_paper(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     subject: str = Form(...),
     grade: str = Form(None),
     category: str = Form(None),
@@ -32,58 +32,83 @@ async def upload_question_paper(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
-    Upload and analyze question paper image
+    Upload and analyze question paper images (supports single or multiple images)
     Extracts questions using Azure GPT-4o Vision
     - wrong_only=true (default): Extract only wrongly answered questions (marked with ✗)
-    - wrong_only=false: Extract ALL questions from the image
+    - wrong_only=false: Extract ALL questions from the images
+    - Supports up to 5 images per batch for questions spanning multiple pages
     Images are stored in Supabase Storage for persistence
     """
     # Convert string to boolean
     extract_wrong_only = wrong_only.lower() == "true"
-    temp_file_path = None
-    
+    temp_file_paths = []
+
     try:
-        # Validate file type
-        if not file.content_type.startswith('image/'):
+        # Validate we have at least one file
+        if not files or len(files) == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File must be an image"
+                detail="At least one file must be uploaded"
             )
 
-        # Read file data into memory
-        file_data = await file.read()
-        
-        # Generate unique filename
-        file_ext = os.path.splitext(file.filename)[1]
-        unique_filename = f"{uuid.uuid4()}{file_ext}"
-        
-        # Save to temporary file for Azure AI processing
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
-            temp_file.write(file_data)
-            temp_file_path = temp_file.name
-
-        # Upload to Supabase Storage for persistence
-        try:
-            image_url = await supabase_storage.upload_image(
-                file_data=file_data,
-                filename=unique_filename,
-                content_type=file.content_type
+        # Validate maximum 5 files
+        if len(files) > 5:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Maximum 5 images allowed per upload"
             )
-            print(f"✅ Image uploaded to Supabase Storage: {image_url}")
-        except Exception as e:
-            print(f"❌ Supabase Storage upload failed, using local fallback: {e}")
-            # Fallback to local storage if Supabase fails
-            upload_dir = settings.UPLOAD_DIR
-            os.makedirs(upload_dir, exist_ok=True)
-            local_file_path = os.path.join(upload_dir, unique_filename)
-            with open(local_file_path, "wb") as buffer:
-                buffer.write(file_data)
-            image_url = f"/uploads/{unique_filename}"
 
-        # Create upload history record
+        # Validate all files are images
+        for file in files:
+            if not file.content_type.startswith('image/'):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File {file.filename} must be an image"
+                )
+
+        # Process all files - save to temp and upload to storage
+        image_urls = []
+        unique_filenames = []
+
+        for file in files:
+            # Read file data into memory
+            file_data = await file.read()
+
+            # Generate unique filename
+            file_ext = os.path.splitext(file.filename)[1]
+            unique_filename = f"{uuid.uuid4()}{file_ext}"
+            unique_filenames.append(unique_filename)
+
+            # Save to temporary file for Azure AI processing
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
+                temp_file.write(file_data)
+                temp_file_paths.append(temp_file.name)
+
+            # Upload to Supabase Storage for persistence
+            try:
+                image_url = await supabase_storage.upload_image(
+                    file_data=file_data,
+                    filename=unique_filename,
+                    content_type=file.content_type
+                )
+                image_urls.append(image_url)
+                print(f"✅ Image {len(image_urls)} uploaded to Supabase Storage: {image_url}")
+            except Exception as e:
+                print(f"❌ Supabase Storage upload failed for image {len(image_urls)+1}, using local fallback: {e}")
+                # Fallback to local storage if Supabase fails
+                upload_dir = settings.UPLOAD_DIR
+                os.makedirs(upload_dir, exist_ok=True)
+                local_file_path = os.path.join(upload_dir, unique_filename)
+                with open(local_file_path, "wb") as buffer:
+                    buffer.write(file_data)
+                image_url = f"/uploads/{unique_filename}"
+                image_urls.append(image_url)
+
+        # Create upload history record (single record for batch)
+        batch_filename = f"batch_{len(files)}_images" if len(files) > 1 else unique_filenames[0]
         upload_record = await supabase_db.create_upload_history(
             user_id=current_user['id'],
-            filename=unique_filename,
+            filename=batch_filename,
             subject=subject,
             status="processing"
         )
@@ -94,16 +119,27 @@ async def upload_question_paper(
             total_completion_tokens = 0
             total_tokens = 0
 
-            # Get user's preferred model (default to gpt-5-chat if not set)
+            # Get user's preferred model
             user_model = current_user.get('preferred_model', 'gpt-4o')
 
-            # Analyze image with Azure AI Vision (using temp file)
-            analysis_result = await azure_ai_service.analyze_question_paper(
-                temp_file_path,
-                subject,
-                wrong_only=extract_wrong_only,
-                model=user_model
-            )
+            # Analyze images with Azure AI Vision
+            if len(files) == 1:
+                # Single image - use original method for backward compatibility
+                analysis_result = await azure_ai_service.analyze_question_paper(
+                    temp_file_paths[0],
+                    subject,
+                    wrong_only=extract_wrong_only,
+                    model=user_model
+                )
+            else:
+                # Multiple images - use batch processing
+                print(f"🔄 Analyzing {len(files)} images in batch...")
+                analysis_result = await azure_ai_service.analyze_question_paper_batch(
+                    temp_file_paths,
+                    subject,
+                    wrong_only=extract_wrong_only,
+                    model=user_model
+                )
 
             # Track tokens from image analysis
             if "tokens_used" in analysis_result:
@@ -120,6 +156,13 @@ async def upload_question_paper(
                 question_text = q_data.get("question_text", "")
                 if not question_text:
                     continue
+
+                # Get image index for this question (default to 0 if not present)
+                image_index = q_data.get("image_index", 0)
+                # Ensure image_index is within valid range
+                if image_index >= len(image_urls):
+                    image_index = 0
+                question_image_url = image_urls[image_index]
 
                 # Generate AI explanation using user's preferred model
                 explanation, explain_tokens = await azure_ai_service.explain_question(
@@ -149,7 +192,7 @@ async def upload_question_paper(
                     grade=grade or current_user.get('grade'),
                     category=category,
                     question_text=question_text,
-                    image_url=image_url,  # Now using Supabase Storage URL
+                    image_url=question_image_url,  # Use correct image URL based on image_index
                     explanation=explanation,
                     status="pending"
                 )
@@ -165,7 +208,9 @@ async def upload_question_paper(
                         grade=grade or current_user.get('grade'),
                         metadata={
                             "topic": q_data.get("topic", ""),
-                            "question_number": q_data.get("question_number", "")
+                            "question_number": q_data.get("question_number", ""),
+                            "image_index": image_index,
+                            "batch_total_images": len(files)
                         }
                     )
                     # Update question with vector_id
@@ -196,17 +241,20 @@ async def upload_question_paper(
 
             # Create upload completion notification
             try:
+                notification_message = f"Successfully extracted {len(questions_created)} question(s) from {len(files)} image(s) in {subject}" if len(files) > 1 else f"Successfully extracted {len(questions_created)} question(s) from {subject}"
+
                 await supabase_db.create_notification(
                     user_id=current_user['id'],
                     notification_type="upload_complete",
-                    title="Upload Complete!",
-                    message=f"Successfully extracted {len(questions_created)} question(s) from {subject}",
+                    title="Upload Complete!" if len(files) == 1 else "Batch Upload Complete!",
+                    message=notification_message,
                     upload_id=upload_record['id'],
                     priority="normal",
                     notification_data={
                         "questions_count": len(questions_created),
+                        "images_count": len(files),
                         "subject": subject,
-                        "filename": unique_filename
+                        "filename": batch_filename
                     },
                     action_url="/review?status=pending",
                     action_label="Review Questions"
@@ -214,8 +262,11 @@ async def upload_question_paper(
             except Exception as e:
                 print(f"Warning: Failed to create upload notification: {e}")
 
+            # Success message
+            success_message = f"Successfully extracted {len(questions_created)} question(s) from {len(files)} image(s)" if len(files) > 1 else f"Successfully extracted {len(questions_created)} wrong question(s)"
+
             return UploadResponse(
-                message=f"Successfully extracted {len(questions_created)} wrong question(s)",
+                message=success_message,
                 questions_count=len(questions_created),
                 upload_id=upload_record['id']
             )
@@ -230,7 +281,7 @@ async def upload_question_paper(
 
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to process image: {str(e)}"
+                detail=f"Failed to process images: {str(e)}"
             )
 
     except HTTPException:
@@ -241,12 +292,13 @@ async def upload_question_paper(
             detail=f"Upload failed: {str(e)}"
         )
     finally:
-        # Clean up temporary file
-        if temp_file_path and os.path.exists(temp_file_path):
-            try:
-                os.remove(temp_file_path)
-            except Exception:
-                pass
+        # Clean up all temporary files
+        for temp_file_path in temp_file_paths:
+            if temp_file_path and os.path.exists(temp_file_path):
+                try:
+                    os.remove(temp_file_path)
+                except Exception:
+                    pass
 
 @router.post("/capture", response_model=QuestionResponse)
 async def capture_question_from_paper(

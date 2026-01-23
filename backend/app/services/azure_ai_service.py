@@ -229,6 +229,188 @@ Return ONLY valid JSON, no additional text."""
             print(f"Error analyzing question paper: {e}")
             raise Exception(f"Failed to analyze image: {str(e)}")
 
+    async def analyze_question_paper_batch(
+        self,
+        image_paths: List[str],
+        subject: str,
+        wrong_only: bool = True,
+        model: str = "gpt-4o"
+    ) -> Dict[str, Any]:
+        """
+        Analyze multiple question paper images to extract questions in a single API call
+
+        Args:
+            image_paths: List of paths to image files
+            subject: The subject of the exam
+            wrong_only: If True, extract only wrongly answered questions (default).
+                       If False, extract ALL questions from the images.
+            model: AI model to use - "gpt-4o" (default) or "gpt-5-chat"
+
+        Returns:
+            Dict containing:
+            - wrong_questions: List of extracted questions with image_index field
+            - total_questions: Total number of questions detected
+            - analysis: Additional analysis from AI
+            - tokens_used: Token usage info (prompt_tokens, completion_tokens, total_tokens)
+        """
+        try:
+            # Encode all images to base64
+            base64_images = [self.encode_image(path) for path in image_paths]
+
+            # Create prompt for batch analysis
+            if wrong_only:
+                prompt = f"""You are an expert educational AI assistant analyzing {len(image_paths)} exam paper/worksheet images for {subject}.
+
+TASK: Analyze these {len(image_paths)} images and identify ALL wrongly answered questions across ALL images.
+
+INSTRUCTIONS:
+1. Look through ALL {len(image_paths)} images for questions marked with crosses (✗, X, ✖), wrong marks, or red marks indicating incorrect answers
+2. Ignore questions marked with check marks (✓, ✔) or correct marks
+3. For each wrong question found, extract:
+   - The complete question text
+   - Question number (if visible)
+   - Image index (0 for first image, 1 for second, etc.)
+   - Any visible context or sub-parts
+   - A brief explanation of what concept/topic it covers
+
+4. Return your analysis as a JSON object with this EXACT structure:
+{{
+    "wrong_questions": [
+        {{
+            "image_index": 0,
+            "question_number": "1a" or null if not visible,
+            "question_text": "Complete question text here",
+            "topic": "Brief topic/concept covered",
+            "explanation": "Brief explanation of what this question tests"
+        }}
+    ],
+    "total_questions_detected": <number>,
+    "total_wrong_questions": <number>,
+    "analysis_notes": "Any additional observations"
+}}
+
+IMPORTANT:
+- Extract the COMPLETE question text, not just a summary
+- Include image_index (0 to {len(image_paths)-1}) for EACH question so we know which image it came from
+- If question text is partially visible or unclear, include what you can see and note it in explanation
+- Only include questions that are clearly marked as WRONG
+- Be thorough and check ALL {len(image_paths)} images
+
+Return ONLY valid JSON, no additional text."""
+            else:
+                # Extract ALL questions regardless of marks
+                prompt = f"""You are an expert educational AI assistant analyzing {len(image_paths)} exam paper/worksheet images for {subject}.
+
+TASK: Analyze these {len(image_paths)} images and extract ALL questions visible across ALL images.
+
+INSTRUCTIONS:
+1. Extract EVERY question visible in ALL {len(image_paths)} images, regardless of any marks (correct, incorrect, or no marks)
+2. For each question found, extract:
+   - The complete question text
+   - Question number (if visible)
+   - Image index (0 for first image, 1 for second, etc.)
+   - Any visible context or sub-parts
+   - A brief explanation of what concept/topic it covers
+
+3. Return your analysis as a JSON object with this EXACT structure:
+{{
+    "wrong_questions": [
+        {{
+            "image_index": 0,
+            "question_number": "1a" or null if not visible,
+            "question_text": "Complete question text here",
+            "topic": "Brief topic/concept covered",
+            "explanation": "Brief explanation of what this question tests"
+        }}
+    ],
+    "total_questions_detected": <number>,
+    "total_wrong_questions": <number>,
+    "analysis_notes": "Any additional observations"
+}}
+
+IMPORTANT:
+- Extract the COMPLETE question text, not just a summary
+- Include image_index (0 to {len(image_paths)-1}) for EACH question
+- Include ALL questions, whether marked correct, incorrect, or unmarked
+- If question text is partially visible or unclear, include what you can see and note it in explanation
+- Be thorough and check ALL {len(image_paths)} images
+
+Return ONLY valid JSON, no additional text."""
+
+            # Get appropriate client and deployment based on model choice
+            client, deployment = self.get_client_and_deployment(model)
+
+            # Build content array with text prompt and all images
+            content = [{"type": "text", "text": prompt}]
+
+            # Add all images to the content array
+            for idx, base64_image in enumerate(base64_images):
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64_image}",
+                        "detail": "high"  # Use high detail for better OCR
+                    }
+                })
+
+            # Call Azure OpenAI Vision API with all images
+            response = client.chat.completions.create(
+                model=deployment,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": content
+                    }
+                ],
+                max_tokens=3000,  # Increased for multiple images
+                temperature=0.3
+            )
+
+            # Parse response
+            result_text = response.choices[0].message.content.strip()
+
+            # Extract token usage
+            tokens_used = {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+
+            # Try to parse JSON from response
+            try:
+                # Remove markdown code blocks if present
+                if result_text.startswith("```json"):
+                    result_text = result_text[7:]
+                if result_text.startswith("```"):
+                    result_text = result_text[3:]
+                if result_text.endswith("```"):
+                    result_text = result_text[:-3]
+
+                result = json.loads(result_text.strip())
+
+                # Ensure all questions have image_index (default to 0 if missing)
+                for q in result.get("wrong_questions", []):
+                    if "image_index" not in q:
+                        q["image_index"] = 0
+
+            except json.JSONDecodeError:
+                # If JSON parsing fails, create a structured response
+                result = {
+                    "wrong_questions": [],
+                    "total_questions_detected": 0,
+                    "total_wrong_questions": 0,
+                    "analysis_notes": result_text
+                }
+
+            # Add token usage to result
+            result["tokens_used"] = tokens_used
+
+            return result
+
+        except Exception as e:
+            print(f"Error analyzing question papers batch: {e}")
+            raise Exception(f"Failed to analyze images: {str(e)}")
+
     async def generate_embedding(self, text: str) -> tuple[List[float], Dict[str, int]]:
         """
         Generate embedding vector for text using Azure OpenAI
