@@ -185,6 +185,14 @@ async def upload_question_paper(
                 total_completion_tokens += embedding_tokens.get("completion_tokens", 0)
                 total_tokens += embedding_tokens.get("total_tokens", 0)
 
+                # Extract crop coordinates from AI response
+                crop_y_start = q_data.get("crop_y_start")
+                crop_y_end = q_data.get("crop_y_end")
+                q_metadata = {}
+                if crop_y_start is not None and crop_y_end is not None:
+                    q_metadata["crop_y_start"] = crop_y_start
+                    q_metadata["crop_y_end"] = crop_y_end
+
                 # Create question record with Supabase Storage URL
                 question = await supabase_db.create_question(
                     user_id=current_user['id'],
@@ -194,7 +202,8 @@ async def upload_question_paper(
                     question_text=question_text,
                     image_url=question_image_url,  # Use correct image URL based on image_index
                     explanation=explanation,
-                    status="pending"
+                    status="pending",
+                    question_metadata=q_metadata if q_metadata else None
                 )
 
                 # Store embedding in Supabase

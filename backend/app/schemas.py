@@ -76,6 +76,7 @@ class QuestionResponse(QuestionBase):
     correct_answer_url: Optional[str] = None
     explanation: Optional[str] = None
     user_notes: Optional[str] = None
+    question_metadata: Optional[Dict] = None
     status: QuestionStatus
     created_at: datetime
     updated_at: datetime

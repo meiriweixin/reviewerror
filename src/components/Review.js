@@ -25,6 +25,62 @@ const getImageUrl = (imageUrl) => {
   return `${apiUrl}${imageUrl}`;
 };
 
+// CroppedImage component - shows only the relevant portion of an exam paper image
+const CroppedImage = ({ src, cropTop, cropBottom, alt, className, style, maxHeight }) => {
+  const [naturalHeight, setNaturalHeight] = React.useState(0);
+  const [naturalWidth, setNaturalWidth] = React.useState(0);
+  const containerRef = React.useRef(null);
+
+  const hasCrop = cropTop != null && cropBottom != null && cropTop !== cropBottom;
+
+  if (!hasCrop) {
+    // No crop data - render full image with maxHeight constraint
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className={className}
+        style={{ ...style, maxHeight: maxHeight || undefined }}
+      />
+    );
+  }
+
+  const cropFraction = (cropBottom - cropTop) / 100;
+  const topFraction = cropTop / 100;
+
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+      style={{
+        overflow: 'hidden',
+        position: 'relative',
+        maxHeight: maxHeight || undefined,
+      }}
+    >
+      <img
+        src={src}
+        alt={alt}
+        onLoad={(e) => {
+          setNaturalHeight(e.target.naturalHeight);
+          setNaturalWidth(e.target.naturalWidth);
+        }}
+        style={{
+          ...style,
+          width: '100%',
+          display: 'block',
+          marginTop: naturalHeight > 0
+            ? `-${topFraction * 100}%`
+            : 0,
+          marginBottom: naturalHeight > 0
+            ? `-${(1 - cropFraction - topFraction) * 100}%`
+            : 0,
+        }}
+      />
+    </div>
+  );
+};
+
 const Review = ({ user }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -471,10 +527,13 @@ const Review = ({ user }) => {
 
               {question.image_url && (
                 <div className="mb-4 dark:bg-white dark:p-4 dark:rounded-2xl">
-                  <img
+                  <CroppedImage
                     src={getImageUrl(question.image_url)}
+                    cropTop={question.question_metadata?.crop_y_start}
+                    cropBottom={question.question_metadata?.crop_y_end}
                     alt="Question"
-                    className="w-full rounded-xl max-h-48 object-cover"
+                    className="w-full rounded-xl"
+                    maxHeight="12rem"
                     style={{
                       filter: 'grayscale(100%) contrast(120%) brightness(105%)'
                     }}
@@ -577,8 +636,10 @@ const Review = ({ user }) => {
             <div className="p-6">
               {selectedQuestion.image_url && (
                 <div className="mb-6 dark:bg-white dark:p-4 dark:rounded-2xl">
-                  <img
+                  <CroppedImage
                     src={getImageUrl(selectedQuestion.image_url)}
+                    cropTop={selectedQuestion.question_metadata?.crop_y_start}
+                    cropBottom={selectedQuestion.question_metadata?.crop_y_end}
                     alt="Question"
                     className="w-full rounded-xl"
                     style={{

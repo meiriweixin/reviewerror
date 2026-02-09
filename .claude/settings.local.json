@@ -24,7 +24,9 @@
       "Bash(timeout /t 5 /nobreak)",
       "Bash(dir /s /b src*.js src*.jsx src*.ts src*.tsx)",
       "Bash(timeout /t 60 /nobreak)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(powershell \"Get-ChildItem ''C:\\\\Users\\\\asus\\\\.claude\\\\projects\\\\D--Study-claude-review-wrong-question\\\\*.jsonl'' | Sort-Object LastWriteTime -Descending | Select-Object -First 3 | Format-Table Name, LastWriteTime\")",
+      "Bash(npx react-scripts build:*)"
     ],
     "deny": [],
     "ask": []

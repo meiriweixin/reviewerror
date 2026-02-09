@@ -111,7 +111,9 @@ INSTRUCTIONS:
             "question_number": "1a" or null if not visible,
             "question_text": "Complete question text here",
             "topic": "Brief topic/concept covered",
-            "explanation": "Brief explanation of what this question tests"
+            "explanation": "Brief explanation of what this question tests",
+            "crop_y_start": 0,
+            "crop_y_end": 25
         }}
     ],
     "total_questions_detected": <number>,
@@ -124,6 +126,7 @@ IMPORTANT:
 - If question text is partially visible or unclear, include what you can see and note it in explanation
 - Only include questions that are clearly marked as WRONG
 - Be thorough and check the entire image
+- For crop_y_start and crop_y_end: estimate the vertical position of each question as a percentage of the image height (0=top, 100=bottom). Include some padding above and below the question.
 
 Return ONLY valid JSON, no additional text."""
             else:
@@ -147,7 +150,9 @@ INSTRUCTIONS:
             "question_number": "1a" or null if not visible,
             "question_text": "Complete question text here",
             "topic": "Brief topic/concept covered",
-            "explanation": "Brief explanation of what this question tests"
+            "explanation": "Brief explanation of what this question tests",
+            "crop_y_start": 0,
+            "crop_y_end": 25
         }}
     ],
     "total_questions_detected": <number>,
@@ -160,6 +165,7 @@ IMPORTANT:
 - Include ALL questions, whether marked correct, incorrect, or unmarked
 - If question text is partially visible or unclear, include what you can see and note it in explanation
 - Be thorough and check the entire image
+- For crop_y_start and crop_y_end: estimate the vertical position of each question as a percentage of the image height (0=top, 100=bottom). Include some padding above and below the question.
 
 Return ONLY valid JSON, no additional text."""
 
@@ -281,7 +287,9 @@ INSTRUCTIONS:
             "question_number": "1a" or null if not visible,
             "question_text": "Complete question text here",
             "topic": "Brief topic/concept covered",
-            "explanation": "Brief explanation of what this question tests"
+            "explanation": "Brief explanation of what this question tests",
+            "crop_y_start": 0,
+            "crop_y_end": 25
         }}
     ],
     "total_questions_detected": <number>,
@@ -295,6 +303,7 @@ IMPORTANT:
 - If question text is partially visible or unclear, include what you can see and note it in explanation
 - Only include questions that are clearly marked as WRONG
 - Be thorough and check ALL {len(image_paths)} images
+- For crop_y_start and crop_y_end: estimate the vertical position of each question as a percentage of that image's height (0=top, 100=bottom). Include some padding above and below the question.
 
 Return ONLY valid JSON, no additional text."""
             else:
@@ -320,7 +329,9 @@ INSTRUCTIONS:
             "question_number": "1a" or null if not visible,
             "question_text": "Complete question text here",
             "topic": "Brief topic/concept covered",
-            "explanation": "Brief explanation of what this question tests"
+            "explanation": "Brief explanation of what this question tests",
+            "crop_y_start": 0,
+            "crop_y_end": 25
         }}
     ],
     "total_questions_detected": <number>,
@@ -334,6 +345,7 @@ IMPORTANT:
 - Include ALL questions, whether marked correct, incorrect, or unmarked
 - If question text is partially visible or unclear, include what you can see and note it in explanation
 - Be thorough and check ALL {len(image_paths)} images
+- For crop_y_start and crop_y_end: estimate the vertical position of each question as a percentage of that image's height (0=top, 100=bottom). Include some padding above and below the question.
 
 Return ONLY valid JSON, no additional text."""
 
