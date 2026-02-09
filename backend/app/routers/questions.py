@@ -5,6 +5,8 @@ import os
 import uuid
 import shutil
 import tempfile
+import io
+from PIL import Image
 
 from app.services.supabase_db_service import supabase_db
 from app.schemas import (
@@ -185,13 +187,34 @@ async def upload_question_paper(
                 total_completion_tokens += embedding_tokens.get("completion_tokens", 0)
                 total_tokens += embedding_tokens.get("total_tokens", 0)
 
-                # Extract crop coordinates from AI response
+                # Extract crop coordinates and crop the image server-side
                 crop_y_start = q_data.get("crop_y_start")
                 crop_y_end = q_data.get("crop_y_end")
-                q_metadata = {}
+                snippet_url = None
+
                 if crop_y_start is not None and crop_y_end is not None:
-                    q_metadata["crop_y_start"] = crop_y_start
-                    q_metadata["crop_y_end"] = crop_y_end
+                    try:
+                        # Use the temp file for this question's image
+                        source_image_path = temp_file_paths[image_index] if image_index < len(temp_file_paths) else temp_file_paths[0]
+                        with Image.open(source_image_path) as img:
+                            w, h = img.size
+                            top = int(h * max(0, crop_y_start) / 100)
+                            bottom = int(h * min(100, crop_y_end) / 100)
+                            if bottom > top + 10:  # Ensure meaningful crop
+                                cropped = img.crop((0, top, w, bottom))
+                                buf = io.BytesIO()
+                                cropped.save(buf, format="JPEG", quality=90)
+                                buf.seek(0)
+                                crop_filename = f"crop_{uuid.uuid4()}.jpg"
+                                snippet_url = await supabase_storage.upload_image(
+                                    file_data=buf.getvalue(),
+                                    filename=crop_filename,
+                                    content_type="image/jpeg"
+                                )
+                                print(f"✅ Cropped image uploaded: {snippet_url} (y: {crop_y_start}-{crop_y_end}%)")
+                    except Exception as e:
+                        print(f"Warning: Failed to crop image: {e}")
+                        snippet_url = None
 
                 # Create question record with Supabase Storage URL
                 question = await supabase_db.create_question(
@@ -200,10 +223,11 @@ async def upload_question_paper(
                     grade=grade or current_user.get('grade'),
                     category=category,
                     question_text=question_text,
-                    image_url=question_image_url,  # Use correct image URL based on image_index
+                    image_url=question_image_url,  # Full page image
+                    image_snippet_url=snippet_url,  # Cropped per-question image
                     explanation=explanation,
                     status="pending",
-                    question_metadata=q_metadata if q_metadata else None
+                    question_metadata={"crop_y_start": crop_y_start, "crop_y_end": crop_y_end} if crop_y_start is not None else None
                 )
 
                 # Store embedding in Supabase

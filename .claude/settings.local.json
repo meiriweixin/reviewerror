@@ -26,7 +26,8 @@
       "Bash(timeout /t 60 /nobreak)",
       "Bash(npx eslint:*)",
       "Bash(powershell \"Get-ChildItem ''C:\\\\Users\\\\asus\\\\.claude\\\\projects\\\\D--Study-claude-review-wrong-question\\\\*.jsonl'' | Sort-Object LastWriteTime -Descending | Select-Object -First 3 | Format-Table Name, LastWriteTime\")",
-      "Bash(npx react-scripts build:*)"
+      "Bash(npx react-scripts build:*)",
+      "Bash(pip show:*)"
     ],
     "deny": [],
     "ask": []
