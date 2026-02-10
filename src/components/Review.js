@@ -68,6 +68,7 @@ const Review = ({ user }) => {
     'Physical Education': ['Sports', 'Fitness', 'Health'],
     Other: []
   };
+  const [availableCategories, setAvailableCategories] = useState([]); // Categories from actual question data
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [updating, setUpdating] = useState(false);
@@ -105,6 +106,17 @@ const Review = ({ user }) => {
       setFilters(prev => ({ ...prev, grade: user.grade }));
     }
   }, [user?.grade]);
+
+  // Derive available categories from loaded questions when no category filter is applied
+  useEffect(() => {
+    if (!filters.category) {
+      const cats = new Set();
+      questions.forEach(q => {
+        if (q.category) cats.add(q.category);
+      });
+      setAvailableCategories(Array.from(cats).sort());
+    }
+  }, [questions, filters.category]);
 
   // Handle subject change - reset category when subject changes
   const handleSubjectChange = (newSubject) => {
@@ -379,9 +391,14 @@ const Review = ({ user }) => {
               <option value="" className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">
                 {filters.subject ? 'All Categories' : 'Select Subject First'}
               </option>
-              {filters.subject && categoryOptions[filters.subject]?.map((cat) => (
-                <option key={cat} value={cat} className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">{cat}</option>
-              ))}
+              {filters.subject && (() => {
+                const hardcoded = categoryOptions[filters.subject] || [];
+                // Merge hardcoded + dynamic categories from actual questions, deduplicated
+                const allCats = [...new Set([...hardcoded, ...availableCategories])];
+                return allCats.map((cat) => (
+                  <option key={cat} value={cat} className="text-gray-900 dark:text-gray-100 bg-white dark:bg-slate-800">{cat}</option>
+                ));
+              })()}
             </select>
           </div>
 
