@@ -44,6 +44,7 @@ async def upload_question_paper(
     # Convert string to boolean
     extract_wrong_only = wrong_only.lower() == "true"
     temp_file_paths = []
+    crop_temp_paths = []
 
     try:
         # Validate we have at least one file
@@ -166,35 +167,15 @@ async def upload_question_paper(
                     image_index = 0
                 question_image_url = image_urls[image_index]
 
-                # Generate AI explanation using user's preferred model
-                explanation, explain_tokens = await azure_ai_service.explain_question(
-                    question_text,
-                    subject,
-                    grade or current_user.get('grade'),
-                    model=user_model
-                )
-
-                # Track explanation tokens
-                total_prompt_tokens += explain_tokens.get("prompt_tokens", 0)
-                total_completion_tokens += explain_tokens.get("completion_tokens", 0)
-                total_tokens += explain_tokens.get("total_tokens", 0)
-
-                # Generate embedding for vector search
-                embedding, embedding_tokens = await azure_ai_service.generate_embedding(question_text)
-
-                # Track embedding tokens
-                total_prompt_tokens += embedding_tokens.get("prompt_tokens", 0)
-                total_completion_tokens += embedding_tokens.get("completion_tokens", 0)
-                total_tokens += embedding_tokens.get("total_tokens", 0)
-
-                # Extract crop coordinates and crop the image server-side
+                # Step 1: Crop the image FIRST so we can use it for text verification and explanation
                 crop_y_start = q_data.get("crop_y_start")
                 crop_y_end = q_data.get("crop_y_end")
                 snippet_url = None
+                crop_temp_path = None
+                cropped_bytes = None
 
                 if crop_y_start is not None and crop_y_end is not None:
                     try:
-                        # Use the temp file for this question's image
                         source_image_path = temp_file_paths[image_index] if image_index < len(temp_file_paths) else temp_file_paths[0]
                         with Image.open(source_image_path) as img:
                             w, h = img.size
@@ -204,10 +185,18 @@ async def upload_question_paper(
                                 cropped = img.crop((0, top, w, bottom))
                                 buf = io.BytesIO()
                                 cropped.save(buf, format="JPEG", quality=90)
-                                buf.seek(0)
+                                cropped_bytes = buf.getvalue()
+
+                                # Save cropped image to temp file for AI processing
+                                crop_temp_path = os.path.join(tempfile.gettempdir(), f"crop_{uuid.uuid4()}.jpg")
+                                with open(crop_temp_path, 'wb') as f:
+                                    f.write(cropped_bytes)
+                                crop_temp_paths.append(crop_temp_path)
+
+                                # Upload cropped image to Supabase Storage
                                 crop_filename = f"crop_{uuid.uuid4()}.jpg"
                                 snippet_url = await supabase_storage.upload_image(
-                                    file_data=buf.getvalue(),
+                                    file_data=cropped_bytes,
                                     filename=crop_filename,
                                     content_type="image/jpeg"
                                 )
@@ -215,6 +204,47 @@ async def upload_question_paper(
                     except Exception as e:
                         print(f"Warning: Failed to crop image: {e}")
                         snippet_url = None
+                        crop_temp_path = None
+
+                # Step 2: Re-extract question text from cropped image to verify accuracy
+                if crop_temp_path:
+                    try:
+                        snippet_result = await azure_ai_service.extract_question_from_snippet(
+                            crop_temp_path, subject, model=user_model
+                        )
+                        snippet_tokens = snippet_result.get("tokens_used", {})
+                        total_prompt_tokens += snippet_tokens.get("prompt_tokens", 0)
+                        total_completion_tokens += snippet_tokens.get("completion_tokens", 0)
+                        total_tokens += snippet_tokens.get("total_tokens", 0)
+
+                        re_extracted_text = snippet_result.get("question_text")
+                        if re_extracted_text and len(re_extracted_text.strip()) > 10:
+                            print(f"🔄 Re-extracted question text from snippet (was: '{question_text[:50]}...' -> now: '{re_extracted_text[:50]}...')")
+                            question_text = re_extracted_text
+                    except Exception as e:
+                        print(f"Warning: Failed to re-extract question text from snippet: {e}")
+
+                # Step 3: Generate AI explanation with image context
+                explanation, explain_tokens = await azure_ai_service.explain_question(
+                    question_text,
+                    subject,
+                    grade or current_user.get('grade'),
+                    model=user_model,
+                    image_path=crop_temp_path  # Pass cropped image for visual context
+                )
+
+                # Track explanation tokens
+                total_prompt_tokens += explain_tokens.get("prompt_tokens", 0)
+                total_completion_tokens += explain_tokens.get("completion_tokens", 0)
+                total_tokens += explain_tokens.get("total_tokens", 0)
+
+                # Step 4: Generate embedding for vector search (using corrected text)
+                embedding, embedding_tokens = await azure_ai_service.generate_embedding(question_text)
+
+                # Track embedding tokens
+                total_prompt_tokens += embedding_tokens.get("prompt_tokens", 0)
+                total_completion_tokens += embedding_tokens.get("completion_tokens", 0)
+                total_tokens += embedding_tokens.get("total_tokens", 0)
 
                 # Create question record with Supabase Storage URL
                 question = await supabase_db.create_question(
@@ -326,7 +356,7 @@ async def upload_question_paper(
         )
     finally:
         # Clean up all temporary files
-        for temp_file_path in temp_file_paths:
+        for temp_file_path in temp_file_paths + crop_temp_paths:
             if temp_file_path and os.path.exists(temp_file_path):
                 try:
                     os.remove(temp_file_path)

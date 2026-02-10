@@ -423,6 +423,92 @@ Return ONLY valid JSON, no additional text."""
             print(f"Error analyzing question papers batch: {e}")
             raise Exception(f"Failed to analyze images: {str(e)}")
 
+    async def extract_question_from_snippet(
+        self,
+        image_path: str,
+        subject: str,
+        model: str = "gpt-4o"
+    ) -> Dict[str, Any]:
+        """
+        Extract question text from a cropped image snippet.
+        Used to verify/correct question text that was extracted from a full page scan,
+        ensuring the text actually matches what's visible in the cropped region.
+
+        Args:
+            image_path: Path to the cropped image file
+            subject: The subject of the exam
+            model: AI model to use
+
+        Returns:
+            Dict with question_text, topic, and tokens_used
+        """
+        try:
+            base64_image = self.encode_image(image_path)
+
+            prompt = f"""Look at this {subject} exam question image snippet and extract the EXACT question text shown.
+
+Return a JSON object:
+{{
+    "question_text": "The complete question text as shown in the image",
+    "topic": "Brief topic this question covers"
+}}
+
+IMPORTANT:
+- Extract ONLY what is visible in this image
+- Include the complete question text including any sub-parts
+- If there are multiple sub-questions visible, include them all
+- Be precise - do not add text that is not visible in the image
+
+Return ONLY valid JSON, no additional text."""
+
+            client, deployment = self.get_client_and_deployment(model)
+
+            response = client.chat.completions.create(
+                model=deployment,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}",
+                                "detail": "high"
+                            }
+                        }
+                    ]
+                }],
+                max_tokens=500,
+                temperature=0.1
+            )
+
+            result_text = response.choices[0].message.content.strip()
+            tokens_used = {
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            }
+
+            # Parse JSON
+            if result_text.startswith("```json"):
+                result_text = result_text[7:]
+            if result_text.startswith("```"):
+                result_text = result_text[3:]
+            if result_text.endswith("```"):
+                result_text = result_text[:-3]
+
+            result = json.loads(result_text.strip())
+            result["tokens_used"] = tokens_used
+            return result
+
+        except Exception as e:
+            print(f"Error extracting question from snippet: {e}")
+            return {
+                "question_text": None,
+                "topic": None,
+                "tokens_used": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+            }
+
     async def generate_embedding(self, text: str) -> tuple[List[float], Dict[str, int]]:
         """
         Generate embedding vector for text using Azure OpenAI
@@ -454,7 +540,8 @@ Return ONLY valid JSON, no additional text."""
         question_text: str,
         subject: str,
         grade: Optional[str] = None,
-        model: str = "gpt-4o"
+        model: str = "gpt-4o",
+        image_path: Optional[str] = None
     ) -> tuple[str, Dict[str, int]]:
         """
         Generate an explanation/solution for a question
@@ -464,6 +551,7 @@ Return ONLY valid JSON, no additional text."""
             subject: The subject of the question
             grade: Optional grade level
             model: AI model to use - "gpt-4o" (default) or "gpt-5-chat"
+            image_path: Optional path to the question image for Vision-based explanation
 
         Returns:
             Tuple of (explanation text, token_usage dict)
@@ -586,6 +674,10 @@ STRICT RULES:
 
             prompt = output_format
 
+            # Add image context instruction when image is provided
+            if image_path:
+                prompt += "\n\nIMPORTANT: An image of the actual question is attached. Use the image to understand the question context, any diagrams, tables, or visual elements. Base your explanation on what you see in the image."
+
             # Get appropriate client and deployment based on model choice
             client, deployment = self.get_client_and_deployment(model)
 
@@ -596,11 +688,27 @@ STRICT RULES:
             else:
                 system_msg = "You are a tutor. Output ONLY structured markdown with headers, bullet points, and numbered lists. NEVER write paragraphs. Use $...$ for ALL mathematical expressions. Be concise."
 
+            # Build user message content - include image if available
+            if image_path:
+                base64_image = self.encode_image(image_path)
+                user_content = [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}",
+                            "detail": "high"
+                        }
+                    }
+                ]
+            else:
+                user_content = prompt
+
             response = client.chat.completions.create(
                 model=deployment,
                 messages=[
                     {"role": "system", "content": system_msg},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": user_content}
                 ],
                 max_tokens=600,
                 temperature=0.2
